@@ -220,15 +220,15 @@ export function AnnotationGraph({
         edges={edges}
         fitView
         fitViewOptions={{ padding: 0.2 }}
-        nodesDraggable={false}
+        nodesDraggable={true}
         nodesConnectable={false}
-        elementsSelectable={false}
-        zoomOnScroll={false}
-        panOnDrag={false}
+        elementsSelectable={true}
+        zoomOnScroll={true}
+        panOnDrag={true}
         proOptions={{ hideAttribution: true }}
       >
         <Background />
-        <Controls showInteractive={false} />
+        <Controls />
       </ReactFlow>
     </div>
   );
