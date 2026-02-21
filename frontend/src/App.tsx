@@ -206,7 +206,7 @@ export function App() {
       }}
     >
       {/* Left Sidebar (Document List) */}
-      <div className={`sidebar-container${leftSidebarCollapsed ? ' collapsed' : ''}`}>
+      <div className={`sidebar-container sidebar-left${leftSidebarCollapsed ? ' collapsed' : ''}`}>
         {leftSidebarCollapsed ? (
           <button
             className="sidebar-toggle"
@@ -216,19 +216,19 @@ export function App() {
             ›
           </button>
         ) : (
-          <DocumentList
-            documents={documents}
-            selectedId={selectedDocId}
-            onSelect={setSelectedDocId}
-            onRefresh={refreshDocuments}
-            onToggleCollapse={toggleLeftSidebar}
-            collapsed={leftSidebarCollapsed}
-          />
+          <>
+            <DocumentList
+              documents={documents}
+              selectedId={selectedDocId}
+              onSelect={setSelectedDocId}
+              onRefresh={refreshDocuments}
+              onToggleCollapse={toggleLeftSidebar}
+              collapsed={leftSidebarCollapsed}
+            />
+            <ResizeHandle onResize={handleLeftResize} direction="left" />
+          </>
         )}
       </div>
-
-      {/* Left Resize Handle */}
-      {!leftSidebarCollapsed && <ResizeHandle onResize={handleLeftResize} direction="left" />}
 
       {/* Main Content Area */}
       {loading && (
@@ -252,11 +252,8 @@ export function App() {
         )
       )}
 
-      {/* Right Resize Handle */}
-      {!rightSidebarCollapsed && <ResizeHandle onResize={handleRightResize} direction="right" />}
-
       {/* Right Sidebar (Annotation Panel) */}
-      <div className={`sidebar-container${rightSidebarCollapsed ? ' collapsed' : ''}`}>
+      <div className={`sidebar-container sidebar-right${rightSidebarCollapsed ? ' collapsed' : ''}`}>
         {rightSidebarCollapsed ? (
           <button
             className="sidebar-toggle"
@@ -267,20 +264,23 @@ export function App() {
           </button>
         ) : (
           currentDoc && annotations && (
-            <AnnotationPanel
-              annotations={annotations}
-              onChange={handleAnnotationChange}
-              onSave={handleSave}
-              isDirty={isDirty}
-              saveError={saveError}
-              spanColorMap={spanColorMap}
-              docAnnColorMap={docAnnColorMap}
-              stepColorMap={stepColorMap}
-              selectedAnnotationId={selectedAnnotationId}
-              onAnnotationSelect={handleAnnotationSelect}
-              onToggleCollapse={toggleRightSidebar}
-              collapsed={rightSidebarCollapsed}
-            />
+            <>
+              <ResizeHandle onResize={handleRightResize} direction="right" />
+              <AnnotationPanel
+                annotations={annotations}
+                onChange={handleAnnotationChange}
+                onSave={handleSave}
+                isDirty={isDirty}
+                saveError={saveError}
+                spanColorMap={spanColorMap}
+                docAnnColorMap={docAnnColorMap}
+                stepColorMap={stepColorMap}
+                selectedAnnotationId={selectedAnnotationId}
+                onAnnotationSelect={handleAnnotationSelect}
+                onToggleCollapse={toggleRightSidebar}
+                collapsed={rightSidebarCollapsed}
+              />
+            </>
           )
         )}
       </div>
