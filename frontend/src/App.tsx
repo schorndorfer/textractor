@@ -1,9 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from './api/client';
 import { AnnotationPanel } from './components/AnnotationPanel';
 import { DocumentList } from './components/DocumentList';
 import { DocumentViewer } from './components/DocumentViewer';
 import type { AnnotationFile, Document, DocumentSummary, Span } from './types';
+
+// Color palette for document annotations (hue, saturation, lightness)
+const COLOR_PALETTE = [
+  { bg: '#e3f2fd', border: '#2196f3' }, // blue
+  { bg: '#f3e5f5', border: '#9c27b0' }, // purple
+  { bg: '#e8f5e9', border: '#4caf50' }, // green
+  { bg: '#fff3e0', border: '#ff9800' }, // orange
+  { bg: '#fce4ec', border: '#e91e63' }, // pink
+  { bg: '#e0f7fa', border: '#00bcd4' }, // cyan
+  { bg: '#fff9c4', border: '#fdd835' }, // yellow
+  { bg: '#f1f8e9', border: '#8bc34a' }, // lime
+  { bg: '#ede7f6', border: '#673ab7' }, // deep purple
+  { bg: '#ffebee', border: '#f44336' }, // red
+  { bg: '#e0f2f1', border: '#009688' }, // teal
+  { bg: '#fff8e1', border: '#ffc107' }, // amber
+];
+
+export type SpanColorMap = Map<string, { bg: string; border: string }>;
 
 export function App() {
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
@@ -17,6 +35,48 @@ export function App() {
   const refreshDocuments = () => {
     api.listDocuments().then(setDocuments).catch(console.error);
   };
+
+  // Compute color mappings for document annotations and spans
+  const { spanColorMap, docAnnColorMap } = useMemo<{
+    spanColorMap: SpanColorMap;
+    docAnnColorMap: SpanColorMap;
+  }>(() => {
+    const spanMap = new Map<string, { bg: string; border: string }>();
+    const docAnnMap = new Map<string, { bg: string; border: string }>();
+    if (!annotations) return { spanColorMap: spanMap, docAnnColorMap: docAnnMap };
+
+    // Assign colors to document annotations
+    annotations.document_annotations.forEach((ann, idx) => {
+      docAnnMap.set(ann.id, COLOR_PALETTE[idx % COLOR_PALETTE.length]);
+    });
+
+    // Map spans to colors via document annotations
+    annotations.document_annotations.forEach((ann) => {
+      const color = docAnnMap.get(ann.id);
+      if (!color) return;
+
+      // Direct evidence spans
+      ann.evidence_span_ids.forEach((spanId) => {
+        if (!spanMap.has(spanId)) {
+          spanMap.set(spanId, color);
+        }
+      });
+
+      // Indirect spans via reasoning steps
+      ann.reasoning_step_ids.forEach((stepId) => {
+        const step = annotations.reasoning_steps.find((s) => s.id === stepId);
+        if (step) {
+          step.span_ids.forEach((spanId) => {
+            if (!spanMap.has(spanId)) {
+              spanMap.set(spanId, color);
+            }
+          });
+        }
+      });
+    });
+
+    return { spanColorMap: spanMap, docAnnColorMap: docAnnMap };
+  }, [annotations]);
 
   useEffect(() => {
     refreshDocuments();
@@ -79,6 +139,7 @@ export function App() {
           <DocumentViewer
             doc={currentDoc}
             spans={annotations.spans}
+            spanColorMap={spanColorMap}
             onSpanCreated={handleSpanCreated}
           />
           <AnnotationPanel
@@ -87,6 +148,8 @@ export function App() {
             onSave={handleSave}
             isDirty={isDirty}
             saveError={saveError}
+            spanColorMap={spanColorMap}
+            docAnnColorMap={docAnnColorMap}
           />
         </>
       ) : (
