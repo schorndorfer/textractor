@@ -5,9 +5,10 @@ interface Props {
   spans: Span[];
   onChange: (spans: Span[]) => void;
   spanColorMap: SpanColorMap;
+  onSpanClick?: (spanId: string) => void;
 }
 
-export function SpanList({ spans, onChange, spanColorMap }: Props) {
+export function SpanList({ spans, onChange, spanColorMap, onSpanClick }: Props) {
   const deleteSpan = (id: string) => onChange(spans.filter((s) => s.id !== id));
 
   return (
@@ -23,7 +24,9 @@ export function SpanList({ spans, onChange, spanColorMap }: Props) {
                 title="Linked to document annotation"
               />
             )}
-            <span className="span-text">"{span.text}"</span>
+            <span className="span-text" onClick={() => onSpanClick?.(span.id)}>
+              {span.text}
+            </span>
             <span className="span-offsets">
               [{span.start}–{span.end}]
             </span>

@@ -5,6 +5,7 @@ interface Props {
   text: string;
   spans: Span[];
   colorMap: SpanColorMap;
+  focusedSpanId?: string | null;
 }
 
 /**
@@ -12,7 +13,7 @@ interface Props {
  * Handles overlapping spans by tracking nesting depth — any character
  * covered by one or more spans is highlighted with colors from the colorMap.
  */
-export function SpanHighlighter({ text, spans, colorMap }: Props) {
+export function SpanHighlighter({ text, spans, colorMap, focusedSpanId }: Props) {
   if (spans.length === 0) {
     return <>{text}</>;
   }
@@ -40,10 +41,12 @@ export function SpanHighlighter({ text, spans, colorMap }: Props) {
         const primarySpanId = activeSpans[0];
         const color = colorMap.get(primarySpanId);
 
+        const isFocused = focusedSpanId === primarySpanId;
         parts.push(
           <mark
             key={`mark-${pos}-${event.pos}`}
-            className="span-highlight"
+            className={`span-highlight${isFocused ? ' focused' : ''}`}
+            data-span-id={primarySpanId}
             style={
               color
                 ? {
