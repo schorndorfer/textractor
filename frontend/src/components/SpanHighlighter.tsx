@@ -1,16 +1,18 @@
 import type { Span } from '../types';
+import type { SpanColorMap } from '../App';
 
 interface Props {
   text: string;
   spans: Span[];
+  colorMap: SpanColorMap;
 }
 
 /**
  * Renders document text with <mark> highlights for each span.
  * Handles overlapping spans by tracking nesting depth — any character
- * covered by one or more spans is highlighted.
+ * covered by one or more spans is highlighted with colors from the colorMap.
  */
-export function SpanHighlighter({ text, spans }: Props) {
+export function SpanHighlighter({ text, spans, colorMap }: Props) {
   if (spans.length === 0) {
     return <>{text}</>;
   }
@@ -28,14 +30,29 @@ export function SpanHighlighter({ text, spans }: Props) {
 
   const parts: React.ReactNode[] = [];
   let pos = 0;
-  let depth = 0;
+  const activeSpans: string[] = []; // Track which spans are currently active
 
   for (const event of events) {
     if (event.pos > pos) {
       const segment = text.slice(pos, event.pos);
-      if (depth > 0) {
+      if (activeSpans.length > 0) {
+        // Use the color of the first active span (topmost in hierarchy)
+        const primarySpanId = activeSpans[0];
+        const color = colorMap.get(primarySpanId);
+
         parts.push(
-          <mark key={`mark-${pos}-${event.pos}`} className="span-highlight">
+          <mark
+            key={`mark-${pos}-${event.pos}`}
+            className="span-highlight"
+            style={
+              color
+                ? {
+                    background: color.bg,
+                    borderBottomColor: color.border,
+                  }
+                : undefined
+            }
+          >
             {segment}
           </mark>
         );
@@ -46,9 +63,12 @@ export function SpanHighlighter({ text, spans }: Props) {
     }
 
     if (event.type === 'open') {
-      depth++;
+      activeSpans.push(event.spanId);
     } else {
-      depth = Math.max(0, depth - 1);
+      const idx = activeSpans.indexOf(event.spanId);
+      if (idx !== -1) {
+        activeSpans.splice(idx, 1);
+      }
     }
   }
 

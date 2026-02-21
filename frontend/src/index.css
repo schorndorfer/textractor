@@ -238,11 +238,24 @@ input { font-family: inherit; font-size: 13px; }
 .span-text { font-style: italic; color: var(--primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
 .span-offsets { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
 
+.color-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
 /* ── Item list (steps + annotations) ──────────────────────────────────── */
 .item-list { overflow-y: auto; }
 
 .list-item {
   border-bottom: 1px solid #f0f0f0;
+}
+
+.list-item.selected {
+  background: #e8f4ff;
+  border-left: 3px solid var(--primary);
 }
 
 .item-row {
@@ -251,13 +264,41 @@ input { font-family: inherit; font-size: 13px; }
   justify-content: space-between;
   padding: 6px 14px;
   gap: 8px;
+  cursor: pointer;
+  transition: background 0.1s;
 }
 
-.item-info { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-.concept-label { font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-row:hover {
+  background: #f8f9fa;
+}
+
+.list-item.selected .item-row:hover {
+  background: #d9ebff;
+}
+
+.item-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  cursor: pointer;
+}
+.concept-label {
+  font-size: 12px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
 .concept-code { color: var(--text-muted); font-weight: 400; }
 .item-meta { font-size: 11px; color: var(--text-muted); }
-.item-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.item-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  cursor: default;
+}
 
 .edit-form {
   padding: 8px 14px;

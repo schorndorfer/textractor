@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import type { ReasoningStep, Span, TerminologyConcept } from '../types';
+import { useState, useMemo } from 'react';
+import type { ReasoningStep, Span, TerminologyConcept, DocumentAnnotation } from '../types';
+import type { SpanColorMap } from '../App';
 import { ConceptSearch } from './ConceptSearch';
 
 function randomId(prefix: string) {
@@ -10,12 +11,22 @@ interface Props {
   steps: ReasoningStep[];
   availableSpans: Span[];
   onChange: (steps: ReasoningStep[]) => void;
+  stepColorMap: SpanColorMap;
+  selectedAnnotationId: string | null;
+  annotations: DocumentAnnotation[];
 }
 
-export function ReasoningStepList({ steps, availableSpans, onChange }: Props) {
+export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMap, selectedAnnotationId, annotations }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftConcept, setDraftConcept] = useState<TerminologyConcept | null>(null);
   const [draftSpanIds, setDraftSpanIds] = useState<string[]>([]);
+
+  // Compute which steps are selected (related to the selected document annotation)
+  const selectedStepIds = useMemo(() => {
+    if (!selectedAnnotationId) return new Set<string>();
+    const selectedAnn = annotations.find((a) => a.id === selectedAnnotationId);
+    return new Set(selectedAnn?.reasoning_step_ids || []);
+  }, [selectedAnnotationId, annotations]);
 
   const addStep = () => {
     const id = randomId('step');
@@ -62,76 +73,87 @@ export function ReasoningStepList({ steps, availableSpans, onChange }: Props) {
 
   return (
     <div className="item-list">
-      {steps.map((step) => (
-        <div
-          key={step.id}
-          className={`list-item${editingId === step.id ? ' editing' : ''}`}
-        >
-          {editingId === step.id ? (
-            <div className="edit-form">
-              <ConceptSearch
-                value={draftConcept}
-                onChange={setDraftConcept}
-                placeholder="Search for intermediate concept..."
-              />
-              {availableSpans.length > 0 && (
-                <div className="checkbox-group">
-                  <label className="checkbox-group-label">Link spans:</label>
-                  {availableSpans.map((span) => (
-                    <label key={span.id} className="checkbox-item">
-                      <input
-                        type="checkbox"
-                        checked={draftSpanIds.includes(span.id)}
-                        onChange={() => toggleSpan(span.id)}
-                      />
-                      <span>"{span.text}"</span>
-                    </label>
-                  ))}
+      {steps.map((step) => {
+        const color = stepColorMap.get(step.id);
+        const isSelected = selectedStepIds.has(step.id);
+        return (
+          <div
+            key={step.id}
+            className={`list-item${editingId === step.id ? ' editing' : ''}${isSelected ? ' selected' : ''}`}
+          >
+            {editingId === step.id ? (
+              <div className="edit-form">
+                <ConceptSearch
+                  value={draftConcept}
+                  onChange={setDraftConcept}
+                  placeholder="Search for intermediate concept..."
+                />
+                {availableSpans.length > 0 && (
+                  <div className="checkbox-group">
+                    <label className="checkbox-group-label">Link spans:</label>
+                    {availableSpans.map((span) => (
+                      <label key={span.id} className="checkbox-item">
+                        <input
+                          type="checkbox"
+                          checked={draftSpanIds.includes(span.id)}
+                          onChange={() => toggleSpan(span.id)}
+                        />
+                        <span>"{span.text}"</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+                <div className="edit-actions">
+                  <button
+                    onClick={() => commitEdit(step.id)}
+                    disabled={!draftConcept}
+                    className="btn-primary"
+                  >
+                    Confirm
+                  </button>
+                  <button onClick={() => cancelEdit(step.id)} className="btn-secondary">
+                    Cancel
+                  </button>
                 </div>
-              )}
-              <div className="edit-actions">
-                <button
-                  onClick={() => commitEdit(step.id)}
-                  disabled={!draftConcept}
-                  className="btn-primary"
-                >
-                  Confirm
-                </button>
-                <button onClick={() => cancelEdit(step.id)} className="btn-secondary">
-                  Cancel
-                </button>
               </div>
-            </div>
-          ) : (
-            <div className="item-row">
-              <div className="item-info">
-                <span className="concept-label">
-                  {step.concept.display || '(no concept)'}{' '}
-                  {step.concept.code && (
-                    <span className="concept-code">[{step.concept.code}]</span>
-                  )}
-                </span>
-                <span className="item-meta">{step.span_ids.length} span(s) linked</span>
+            ) : (
+              <div className="item-row">
+                {color && (
+                  <span
+                    className="color-indicator"
+                    style={{ backgroundColor: color.border }}
+                    title="Linked to document annotation"
+                  />
+                )}
+                <div className="item-info">
+                  <span className="concept-label">
+                    {step.concept.display || '(no concept)'}{' '}
+                    {step.concept.code && (
+                      <span className="concept-code">[{step.concept.code}]</span>
+                    )}
+                  </span>
+                  <span className="item-meta">{step.span_ids.length} span(s) linked</span>
+                </div>
+                <div className="item-actions">
+                  <button
+                    onClick={() => {
+                      setEditingId(step.id);
+                      setDraftConcept(step.concept.code ? step.concept : null);
+                      setDraftSpanIds(step.span_ids);
+                    }}
+                    className="btn-small"
+                  >
+                    Edit
+                  </button>
+                  <button onClick={() => deleteStep(step.id)} className="btn-small btn-danger">
+                    Delete
+                  </button>
+                </div>
               </div>
-              <div className="item-actions">
-                <button
-                  onClick={() => {
-                    setEditingId(step.id);
-                    setDraftConcept(step.concept.code ? step.concept : null);
-                    setDraftSpanIds(step.span_ids);
-                  }}
-                  className="btn-small"
-                >
-                  Edit
-                </button>
-                <button onClick={() => deleteStep(step.id)} className="btn-small btn-danger">
-                  Delete
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      ))}
+            )}
+          </div>
+        );
+      })}
       <button onClick={addStep} className="btn-add">
         + Add Reasoning Step
       </button>

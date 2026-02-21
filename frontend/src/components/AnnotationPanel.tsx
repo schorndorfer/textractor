@@ -1,4 +1,5 @@
 import type { AnnotationFile, DocumentAnnotation, ReasoningStep, Span } from '../types';
+import type { SpanColorMap } from '../App';
 import { DocumentAnnotationList } from './DocumentAnnotationList';
 import { ReasoningStepList } from './ReasoningStepList';
 import { SpanList } from './SpanList';
@@ -9,9 +10,25 @@ interface Props {
   onSave: () => void;
   isDirty: boolean;
   saveError: string | null;
+  spanColorMap: SpanColorMap;
+  docAnnColorMap: SpanColorMap;
+  stepColorMap: SpanColorMap;
+  selectedAnnotationId: string | null;
+  onAnnotationSelect: (annotationId: string | null) => void;
 }
 
-export function AnnotationPanel({ annotations, onChange, onSave, isDirty, saveError }: Props) {
+export function AnnotationPanel({
+  annotations,
+  onChange,
+  onSave,
+  isDirty,
+  saveError,
+  spanColorMap,
+  docAnnColorMap,
+  stepColorMap,
+  selectedAnnotationId,
+  onAnnotationSelect,
+}: Props) {
   const updateSpans = (spans: Span[]) => {
     // Cascade: remove deleted span IDs from steps and doc annotations
     const spanIds = new Set(spans.map((s) => s.id));
@@ -51,7 +68,7 @@ export function AnnotationPanel({ annotations, onChange, onSave, isDirty, saveEr
 
       <section className="panel-section">
         <h3>Spans ({annotations.spans.length})</h3>
-        <SpanList spans={annotations.spans} onChange={updateSpans} />
+        <SpanList spans={annotations.spans} onChange={updateSpans} spanColorMap={spanColorMap} />
       </section>
 
       <section className="panel-section">
@@ -60,6 +77,9 @@ export function AnnotationPanel({ annotations, onChange, onSave, isDirty, saveEr
           steps={annotations.reasoning_steps}
           availableSpans={annotations.spans}
           onChange={updateSteps}
+          stepColorMap={stepColorMap}
+          selectedAnnotationId={selectedAnnotationId}
+          annotations={annotations.document_annotations}
         />
       </section>
 
@@ -70,6 +90,9 @@ export function AnnotationPanel({ annotations, onChange, onSave, isDirty, saveEr
           availableSpans={annotations.spans}
           availableSteps={annotations.reasoning_steps}
           onChange={updateDocAnns}
+          docAnnColorMap={docAnnColorMap}
+          selectedAnnotationId={selectedAnnotationId}
+          onAnnotationSelect={onAnnotationSelect}
         />
       </section>
     </aside>

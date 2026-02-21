@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { DocumentAnnotation, ReasoningStep, Span, TerminologyConcept } from '../types';
+import type { SpanColorMap } from '../App';
 import { ConceptSearch } from './ConceptSearch';
 
 function randomId(prefix: string) {
@@ -11,6 +12,9 @@ interface Props {
   availableSpans: Span[];
   availableSteps: ReasoningStep[];
   onChange: (anns: DocumentAnnotation[]) => void;
+  docAnnColorMap: SpanColorMap;
+  selectedAnnotationId: string | null;
+  onAnnotationSelect: (annotationId: string | null) => void;
 }
 
 export function DocumentAnnotationList({
@@ -18,6 +22,9 @@ export function DocumentAnnotationList({
   availableSpans,
   availableSteps,
   onChange,
+  docAnnColorMap,
+  selectedAnnotationId,
+  onAnnotationSelect,
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftConcept, setDraftConcept] = useState<TerminologyConcept | null>(null);
@@ -75,13 +82,16 @@ export function DocumentAnnotationList({
 
   return (
     <div className="item-list">
-      {annotations.map((ann) => (
-        <div
-          key={ann.id}
-          className={`list-item${editingId === ann.id ? ' editing' : ''}`}
-        >
-          {editingId === ann.id ? (
-            <div className="edit-form">
+      {annotations.map((ann) => {
+        const color = docAnnColorMap.get(ann.id);
+        const isSelected = selectedAnnotationId === ann.id;
+        return (
+          <div
+            key={ann.id}
+            className={`list-item${editingId === ann.id ? ' editing' : ''}${isSelected ? ' selected' : ''}`}
+          >
+            {editingId === ann.id ? (
+              <div className="edit-form">
               <ConceptSearch
                 value={draftConcept}
                 onChange={setDraftConcept}
@@ -131,7 +141,20 @@ export function DocumentAnnotationList({
               </div>
             </div>
           ) : (
-            <div className="item-row">
+            <div
+              className="item-row"
+              onClick={() => {
+                console.log('Clicking annotation:', ann.id, ann.concept.display);
+                onAnnotationSelect(ann.id);
+              }}
+            >
+              {color && (
+                <span
+                  className="color-indicator"
+                  style={{ backgroundColor: color.border }}
+                  title="Document annotation color"
+                />
+              )}
               <div className="item-info">
                 <span className="concept-label">
                   {ann.concept.display || '(no concept)'}{' '}
@@ -143,7 +166,7 @@ export function DocumentAnnotationList({
                   {ann.evidence_span_ids.length} span(s), {ann.reasoning_step_ids.length} step(s)
                 </span>
               </div>
-              <div className="item-actions">
+              <div className="item-actions" onClick={(e) => e.stopPropagation()}>
                 <button
                   onClick={() => {
                     setEditingId(ann.id);
@@ -164,8 +187,9 @@ export function DocumentAnnotationList({
               </div>
             </div>
           )}
-        </div>
-      ))}
+          </div>
+        );
+      })}
       <button onClick={addAnnotation} className="btn-add">
         + Add Document Annotation
       </button>

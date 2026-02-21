@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import type { Document, Span } from '../types';
+import type { SpanColorMap } from '../App';
 import { SpanHighlighter } from './SpanHighlighter';
 
 function randomId(prefix: string): string {
@@ -36,10 +37,11 @@ function getCharOffset(container: HTMLElement, targetNode: Node, targetOffset: n
 interface Props {
   doc: Document;
   spans: Span[];
+  spanColorMap: SpanColorMap;
   onSpanCreated: (span: Span) => void;
 }
 
-export function DocumentViewer({ doc, spans, onSpanCreated }: Props) {
+export function DocumentViewer({ doc, spans, spanColorMap, onSpanCreated }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleMouseUp = () => {
@@ -81,7 +83,7 @@ export function DocumentViewer({ doc, spans, onSpanCreated }: Props) {
         onDragStart={(e) => e.preventDefault()}
         className="doc-text"
       >
-        <SpanHighlighter text={doc.text} spans={spans} />
+        <SpanHighlighter text={doc.text} spans={spans} colorMap={spanColorMap} />
       </div>
     </main>
   );
