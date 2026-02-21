@@ -415,13 +415,16 @@ input { font-family: inherit; font-size: 13px; }
 }
 
 .panel-section {
-  border-bottom: 1px solid var(--sidebar-border);
   flex-shrink: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   max-height: 33vh;
   background: var(--sidebar-bg);
+}
+
+.panel-section:not(:first-of-type) {
+  border-top: 2px solid var(--separator);
 }
 
 /* Progressive shading for visual hierarchy */
