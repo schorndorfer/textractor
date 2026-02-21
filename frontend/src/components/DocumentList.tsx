@@ -143,7 +143,6 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
               <span className="doc-item-id">{doc.id}</span>
               {doc.is_annotated && <span className="badge">✓</span>}
             </div>
-            <p className="doc-preview">{doc.text_preview}</p>
           </li>
         ))}
         {filtered.length === 0 && (

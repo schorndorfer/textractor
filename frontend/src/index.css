@@ -249,7 +249,6 @@ input { font-family: inherit; font-size: 13px; }
   padding: 1px 5px;
   font-size: 10px;
 }
-.doc-preview { margin: 0; font-size: 11px; color: var(--text-muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
 .empty-hint { padding: 16px 12px; color: var(--text-muted); font-size: 12px; }
 
