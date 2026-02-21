@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import type { Document, Span } from '../types';
 import type { SpanColorMap } from '../App';
 import { SpanHighlighter } from './SpanHighlighter';
@@ -41,13 +41,24 @@ interface Props {
   onSpanCreated: (span: Span) => void;
   fontSize: number;
   onFontSizeChange: (delta: number) => void;
+  focusedSpanId?: string | null;
 }
 
 const MIN_FONT_SIZE = 10;
 const MAX_FONT_SIZE = 24;
 
-export function DocumentViewer({ doc, spans, spanColorMap, onSpanCreated, fontSize, onFontSizeChange }: Props) {
+export function DocumentViewer({ doc, spans, spanColorMap, onSpanCreated, fontSize, onFontSizeChange, focusedSpanId }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to focused span when it changes
+  useEffect(() => {
+    if (!focusedSpanId || !containerRef.current) return;
+
+    const mark = containerRef.current.querySelector(`[data-span-id="${focusedSpanId}"]`);
+    if (mark) {
+      mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [focusedSpanId]);
 
   const handleMouseUp = () => {
     const selection = window.getSelection();
@@ -110,7 +121,7 @@ export function DocumentViewer({ doc, spans, spanColorMap, onSpanCreated, fontSi
         className="doc-text"
         style={{ fontSize: `${fontSize}px`, lineHeight: 1.7 }}
       >
-        <SpanHighlighter text={doc.text} spans={spans} colorMap={spanColorMap} />
+        <SpanHighlighter text={doc.text} spans={spans} colorMap={spanColorMap} focusedSpanId={focusedSpanId} />
       </div>
     </main>
   );
