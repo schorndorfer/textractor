@@ -770,6 +770,16 @@ input { font-family: inherit; font-size: 13px; }
   gap: 24px;
 }
 
+.graph-container-dag {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  position: relative;
+  min-height: 600px;
+}
+
 .graph-level {
   display: flex;
   flex-direction: column;
@@ -806,6 +816,11 @@ input { font-family: inherit; font-size: 13px; }
   gap: 8px;
 }
 
+.graph-node-wrapper {
+  position: relative;
+  z-index: 10;
+}
+
 .graph-node {
   border: 2px solid;
   border-radius: 8px;
@@ -813,6 +828,8 @@ input { font-family: inherit; font-size: 13px; }
   background: white;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: all 0.2s;
+  position: relative;
+  z-index: 10;
 }
 
 .graph-node:hover {
