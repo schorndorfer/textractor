@@ -20,10 +20,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   listDocuments: () => request<DocumentSummary[]>('/documents'),
 
-  uploadDocument: (file: File) => {
+  uploadDocuments: (files: File[]) => {
     const form = new FormData();
-    form.append('file', file);
-    return request<DocumentSummary>('/documents/upload', { method: 'POST', body: form });
+    files.forEach((file) => form.append('files', file));
+    return request<DocumentSummary[]>('/documents/upload', { method: 'POST', body: form });
   },
 
   getDocument: (docId: string) => request<Document>(`/documents/${docId}`),

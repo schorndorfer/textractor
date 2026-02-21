@@ -146,6 +146,10 @@ input { font-family: inherit; font-size: 13px; }
 
 .doc-list-header h2 { font-size: 14px; font-weight: 600; flex: 1; }
 
+.upload-container {
+  position: relative;
+}
+
 .upload-btn {
   background: var(--primary);
   color: #fff;
@@ -156,7 +160,41 @@ input { font-family: inherit; font-size: 13px; }
   cursor: pointer;
 }
 .upload-btn:hover { background: var(--primary-dark); }
-.upload-btn.uploading { opacity: 0.6; cursor: default; }
+.upload-btn:disabled { opacity: 0.6; cursor: default; }
+
+.upload-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  min-width: 120px;
+}
+
+.upload-menu-item {
+  display: block;
+  padding: 8px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.1s;
+  color: var(--text);
+}
+
+.upload-menu-item:hover {
+  background: var(--bg);
+}
+
+.upload-menu-item:first-child {
+  border-radius: 4px 4px 0 0;
+}
+
+.upload-menu-item:last-child {
+  border-radius: 0 0 4px 4px;
+}
 
 .upload-error { color: var(--danger); font-size: 11px; padding: 4px 12px; margin: 0; }
 
