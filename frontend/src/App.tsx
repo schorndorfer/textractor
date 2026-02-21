@@ -28,6 +28,7 @@ const MIN_SIDEBAR_WIDTH = 200;
 const MAX_SIDEBAR_WIDTH = 600;
 const DEFAULT_LEFT_WIDTH = 260;
 const DEFAULT_RIGHT_WIDTH = 380;
+const DEFAULT_FONT_SIZE = 14;
 
 export function App() {
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
@@ -44,6 +45,12 @@ export function App() {
   const [rightSidebarWidth, setRightSidebarWidth] = useState(DEFAULT_RIGHT_WIDTH);
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
   const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false);
+
+  // Font size state (persisted to localStorage)
+  const [fontSize, setFontSize] = useState<number>(() => {
+    const saved = localStorage.getItem('textractor-font-size');
+    return saved ? parseInt(saved, 10) : DEFAULT_FONT_SIZE;
+  });
 
   const refreshDocuments = () => {
     api.listDocuments().then(setDocuments).catch(console.error);
@@ -198,6 +205,15 @@ export function App() {
     setRightSidebarCollapsed((prev) => !prev);
   }, []);
 
+  // Font size handlers
+  const handleFontSizeChange = useCallback((delta: number) => {
+    setFontSize((prev) => {
+      const newSize = Math.max(10, Math.min(24, prev + delta));
+      localStorage.setItem('textractor-font-size', newSize.toString());
+      return newSize;
+    });
+  }, []);
+
   return (
     <div
       className="app-layout"
@@ -243,6 +259,8 @@ export function App() {
           spans={visibleSpans}
           spanColorMap={spanColorMap}
           onSpanCreated={handleSpanCreated}
+          fontSize={fontSize}
+          onFontSizeChange={handleFontSizeChange}
         />
       ) : (
         !loading && (
