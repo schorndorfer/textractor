@@ -37,21 +37,23 @@ export function App() {
     api.listDocuments().then(setDocuments).catch(console.error);
   };
 
-  // Compute color mappings for document annotations and spans
-  const { spanColorMap, docAnnColorMap } = useMemo<{
+  // Compute color mappings for document annotations, spans, and reasoning steps
+  const { spanColorMap, docAnnColorMap, stepColorMap } = useMemo<{
     spanColorMap: SpanColorMap;
     docAnnColorMap: SpanColorMap;
+    stepColorMap: SpanColorMap;
   }>(() => {
     const spanMap = new Map<string, { bg: string; border: string }>();
     const docAnnMap = new Map<string, { bg: string; border: string }>();
-    if (!annotations) return { spanColorMap: spanMap, docAnnColorMap: docAnnMap };
+    const stepMap = new Map<string, { bg: string; border: string }>();
+    if (!annotations) return { spanColorMap: spanMap, docAnnColorMap: docAnnMap, stepColorMap: stepMap };
 
     // Assign colors to document annotations
     annotations.document_annotations.forEach((ann, idx) => {
       docAnnMap.set(ann.id, COLOR_PALETTE[idx % COLOR_PALETTE.length]);
     });
 
-    // Map spans to colors via document annotations
+    // Map spans and reasoning steps to colors via document annotations
     annotations.document_annotations.forEach((ann) => {
       const color = docAnnMap.get(ann.id);
       if (!color) return;
@@ -63,8 +65,13 @@ export function App() {
         }
       });
 
-      // Indirect spans via reasoning steps
+      // Reasoning steps
       ann.reasoning_step_ids.forEach((stepId) => {
+        if (!stepMap.has(stepId)) {
+          stepMap.set(stepId, color);
+        }
+
+        // Indirect spans via reasoning steps
         const step = annotations.reasoning_steps.find((s) => s.id === stepId);
         if (step) {
           step.span_ids.forEach((spanId) => {
@@ -76,7 +83,7 @@ export function App() {
       });
     });
 
-    return { spanColorMap: spanMap, docAnnColorMap: docAnnMap };
+    return { spanColorMap: spanMap, docAnnColorMap: docAnnMap, stepColorMap: stepMap };
   }, [annotations]);
 
   useEffect(() => {
@@ -186,6 +193,7 @@ export function App() {
             saveError={saveError}
             spanColorMap={spanColorMap}
             docAnnColorMap={docAnnColorMap}
+            stepColorMap={stepColorMap}
             selectedAnnotationId={selectedAnnotationId}
             onAnnotationSelect={handleAnnotationSelect}
           />

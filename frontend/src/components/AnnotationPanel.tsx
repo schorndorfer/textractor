@@ -12,6 +12,7 @@ interface Props {
   saveError: string | null;
   spanColorMap: SpanColorMap;
   docAnnColorMap: SpanColorMap;
+  stepColorMap: SpanColorMap;
   selectedAnnotationId: string | null;
   onAnnotationSelect: (annotationId: string | null) => void;
 }
@@ -24,6 +25,7 @@ export function AnnotationPanel({
   saveError,
   spanColorMap,
   docAnnColorMap,
+  stepColorMap,
   selectedAnnotationId,
   onAnnotationSelect,
 }: Props) {
@@ -75,6 +77,9 @@ export function AnnotationPanel({
           steps={annotations.reasoning_steps}
           availableSpans={annotations.spans}
           onChange={updateSteps}
+          stepColorMap={stepColorMap}
+          selectedAnnotationId={selectedAnnotationId}
+          annotations={annotations.document_annotations}
         />
       </section>
 
