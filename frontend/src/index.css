@@ -7,6 +7,8 @@
   --parchment: #fdfdf8;
   --sidebar-bg: #faf8f5;
   --sidebar-surface: #fdfcfa;
+  --sidebar-shade-1: #f7f5f2;
+  --sidebar-shade-2: #f4f1ed;
   --border: #dee2e6;
   --sidebar-border: #e8e6e3;
   --text: #212529;
@@ -345,6 +347,19 @@ input { font-family: inherit; font-size: 13px; }
   border-bottom: 2px solid var(--highlight-border);
   border-radius: 2px;
   padding: 0 1px;
+  transition: all 0.2s;
+}
+
+.span-highlight.focused {
+  background: #ffeb3b;
+  border-bottom: 3px solid #f57c00;
+  box-shadow: 0 0 0 3px rgba(255, 152, 0, 0.3);
+  animation: pulse 0.5s ease-out;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.7); }
+  100% { box-shadow: 0 0 0 3px rgba(255, 152, 0, 0.3); }
 }
 
 /* ── Annotation panel ──────────────────────────────────────────────────── */
@@ -402,6 +417,31 @@ input { font-family: inherit; font-size: 13px; }
   background: var(--sidebar-bg);
 }
 
+/* Progressive shading for visual hierarchy */
+.panel-section:nth-child(3) { /* Spans section */
+  background: var(--sidebar-bg);
+}
+
+.panel-section:nth-child(3) h3 {
+  background: var(--sidebar-surface);
+}
+
+.panel-section:nth-child(4) { /* Reasoning steps section */
+  background: var(--sidebar-shade-1);
+}
+
+.panel-section:nth-child(4) h3 {
+  background: var(--sidebar-bg);
+}
+
+.panel-section:nth-child(5) { /* Document annotations section */
+  background: var(--sidebar-shade-2);
+}
+
+.panel-section:nth-child(5) h3 {
+  background: var(--sidebar-shade-1);
+}
+
 .panel-section h3 {
   font-size: 12px;
   font-weight: 600;
@@ -410,11 +450,10 @@ input { font-family: inherit; font-size: 13px; }
   color: var(--text-muted);
   padding: 10px 14px 6px;
   flex-shrink: 0;
-  background: var(--sidebar-surface);
 }
 
 /* ── Span list ─────────────────────────────────────────────────────────── */
-.span-list { overflow-y: auto; background: var(--sidebar-bg); }
+.span-list { overflow-y: auto; }
 
 .span-item {
   display: flex;
@@ -423,10 +462,32 @@ input { font-family: inherit; font-size: 13px; }
   padding: 5px 14px;
   border-bottom: 1px solid var(--sidebar-border);
   font-size: 12px;
-  background: var(--sidebar-bg);
 }
-.span-text { font-style: italic; color: var(--primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-.span-offsets { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
+.span-text {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  color: var(--text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  border: 1px solid var(--sidebar-border);
+  background: var(--sidebar-surface);
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.span-text:hover {
+  border-color: var(--primary);
+  background: #f0f4f8;
+}
+.span-offsets {
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+}
 
 .color-indicator {
   width: 10px;
@@ -441,7 +502,6 @@ input { font-family: inherit; font-size: 13px; }
 
 .list-item {
   border-bottom: 1px solid var(--sidebar-border);
-  background: var(--sidebar-bg);
 }
 
 .list-item.selected {
@@ -481,6 +541,7 @@ input { font-family: inherit; font-size: 13px; }
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
 }
 .concept-code { color: var(--text-muted); font-weight: 400; }
 .item-meta { font-size: 11px; color: var(--text-muted); }
@@ -496,7 +557,6 @@ input { font-family: inherit; font-size: 13px; }
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: var(--sidebar-bg);
 }
 
 .edit-actions { display: flex; gap: 6px; }

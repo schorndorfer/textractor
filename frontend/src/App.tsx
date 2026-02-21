@@ -39,6 +39,7 @@ export function App() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
+  const [focusedSpanId, setFocusedSpanId] = useState<string | null>(null);
 
   // Sidebar width and collapse state
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(DEFAULT_LEFT_WIDTH);
@@ -113,6 +114,7 @@ export function App() {
     if (!selectedDocId) return;
     setLoading(true);
     setSelectedAnnotationId(null); // Clear selection when switching documents
+    setFocusedSpanId(null); // Clear focused span when switching documents
     Promise.all([api.getDocument(selectedDocId), api.getAnnotations(selectedDocId)])
       .then(([doc, ann]) => {
         setCurrentDoc(doc);
@@ -261,6 +263,7 @@ export function App() {
           onSpanCreated={handleSpanCreated}
           fontSize={fontSize}
           onFontSizeChange={handleFontSizeChange}
+          focusedSpanId={focusedSpanId}
         />
       ) : (
         !loading && (
@@ -297,6 +300,7 @@ export function App() {
                 onAnnotationSelect={handleAnnotationSelect}
                 onToggleCollapse={toggleRightSidebar}
                 collapsed={rightSidebarCollapsed}
+                onSpanClick={setFocusedSpanId}
               />
             </>
           )

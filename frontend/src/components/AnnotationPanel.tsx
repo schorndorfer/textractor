@@ -17,6 +17,7 @@ interface Props {
   onAnnotationSelect: (annotationId: string | null) => void;
   onToggleCollapse?: () => void;
   collapsed?: boolean;
+  onSpanClick?: (spanId: string) => void;
 }
 
 export function AnnotationPanel({
@@ -32,6 +33,7 @@ export function AnnotationPanel({
   onAnnotationSelect,
   onToggleCollapse,
   collapsed,
+  onSpanClick,
 }: Props) {
   const updateSpans = (spans: Span[]) => {
     // Cascade: remove deleted span IDs from steps and doc annotations
@@ -81,7 +83,7 @@ export function AnnotationPanel({
 
       <section className="panel-section">
         <h3>Spans ({annotations.spans.length})</h3>
-        <SpanList spans={annotations.spans} onChange={updateSpans} spanColorMap={spanColorMap} />
+        <SpanList spans={annotations.spans} onChange={updateSpans} spanColorMap={spanColorMap} onSpanClick={onSpanClick} />
       </section>
 
       <section className="panel-section">
