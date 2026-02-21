@@ -207,19 +207,22 @@ export function App() {
     >
       {/* Left Sidebar (Document List) */}
       <div className={`sidebar-container${leftSidebarCollapsed ? ' collapsed' : ''}`}>
-        <button
-          className="sidebar-toggle sidebar-toggle-left"
-          onClick={toggleLeftSidebar}
-          title={leftSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {leftSidebarCollapsed ? '›' : '‹'}
-        </button>
-        {!leftSidebarCollapsed && (
+        {leftSidebarCollapsed ? (
+          <button
+            className="sidebar-toggle"
+            onClick={toggleLeftSidebar}
+            title="Expand sidebar"
+          >
+            ›
+          </button>
+        ) : (
           <DocumentList
             documents={documents}
             selectedId={selectedDocId}
             onSelect={setSelectedDocId}
             onRefresh={refreshDocuments}
+            onToggleCollapse={toggleLeftSidebar}
+            collapsed={leftSidebarCollapsed}
           />
         )}
       </div>
@@ -254,26 +257,31 @@ export function App() {
 
       {/* Right Sidebar (Annotation Panel) */}
       <div className={`sidebar-container${rightSidebarCollapsed ? ' collapsed' : ''}`}>
-        <button
-          className="sidebar-toggle sidebar-toggle-right"
-          onClick={toggleRightSidebar}
-          title={rightSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {rightSidebarCollapsed ? '‹' : '›'}
-        </button>
-        {!rightSidebarCollapsed && currentDoc && annotations && (
-          <AnnotationPanel
-            annotations={annotations}
-            onChange={handleAnnotationChange}
-            onSave={handleSave}
-            isDirty={isDirty}
-            saveError={saveError}
-            spanColorMap={spanColorMap}
-            docAnnColorMap={docAnnColorMap}
-            stepColorMap={stepColorMap}
-            selectedAnnotationId={selectedAnnotationId}
-            onAnnotationSelect={handleAnnotationSelect}
-          />
+        {rightSidebarCollapsed ? (
+          <button
+            className="sidebar-toggle"
+            onClick={toggleRightSidebar}
+            title="Expand sidebar"
+          >
+            ‹
+          </button>
+        ) : (
+          currentDoc && annotations && (
+            <AnnotationPanel
+              annotations={annotations}
+              onChange={handleAnnotationChange}
+              onSave={handleSave}
+              isDirty={isDirty}
+              saveError={saveError}
+              spanColorMap={spanColorMap}
+              docAnnColorMap={docAnnColorMap}
+              stepColorMap={stepColorMap}
+              selectedAnnotationId={selectedAnnotationId}
+              onAnnotationSelect={handleAnnotationSelect}
+              onToggleCollapse={toggleRightSidebar}
+              collapsed={rightSidebarCollapsed}
+            />
+          )
         )}
       </div>
     </div>

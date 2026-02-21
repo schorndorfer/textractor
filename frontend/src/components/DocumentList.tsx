@@ -9,9 +9,11 @@ interface Props {
   selectedId: string | null;
   onSelect: (id: string) => void;
   onRefresh: () => void;
+  onToggleCollapse?: () => void;
+  collapsed?: boolean;
 }
 
-export function DocumentList({ documents, selectedId, onSelect, onRefresh }: Props) {
+export function DocumentList({ documents, selectedId, onSelect, onRefresh, onToggleCollapse, collapsed }: Props) {
   const [filter, setFilter] = useState<Filter>('all');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -46,6 +48,15 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh }: Pro
           {uploading ? '...' : 'Upload'}
           <input type="file" accept=".json" onChange={handleFileUpload} hidden />
         </label>
+        {onToggleCollapse && (
+          <button
+            className="sidebar-toggle"
+            onClick={onToggleCollapse}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            ‹
+          </button>
+        )}
       </div>
       {uploadError && <p className="upload-error">{uploadError}</p>}
       <div className="filter-tabs">
