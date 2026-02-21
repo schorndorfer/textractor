@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { api } from './api/client';
 import { AnnotationPanel } from './components/AnnotationPanel';
+import { AnnotationGraph } from './components/AnnotationGraph';
 import { DocumentList } from './components/DocumentList';
 import { DocumentViewer } from './components/DocumentViewer';
 import { ResizeHandle } from './components/ResizeHandle';
@@ -40,6 +41,7 @@ export function App() {
   const [loading, setLoading] = useState(false);
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
   const [focusedSpanId, setFocusedSpanId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'document' | 'graph'>('document');
 
   // Sidebar width and collapse state
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(DEFAULT_LEFT_WIDTH);
@@ -155,6 +157,10 @@ export function App() {
     setSelectedAnnotationId((prev) => {
       const newValue = prev === annotationId ? null : annotationId;
       console.log('New selection will be:', newValue);
+      // Auto-switch to graph tab when annotation is selected
+      if (newValue !== null) {
+        setActiveTab('graph');
+      }
       return newValue;
     });
   };
@@ -256,15 +262,48 @@ export function App() {
       )}
 
       {!loading && currentDoc && annotations ? (
-        <DocumentViewer
-          doc={currentDoc}
-          spans={visibleSpans}
-          spanColorMap={spanColorMap}
-          onSpanCreated={handleSpanCreated}
-          fontSize={fontSize}
-          onFontSizeChange={handleFontSizeChange}
-          focusedSpanId={focusedSpanId}
-        />
+        <div className="main-content">
+          {/* Tab Navigation */}
+          <div className="tab-navigation">
+            <button
+              className={`tab-button${activeTab === 'document' ? ' active' : ''}`}
+              onClick={() => setActiveTab('document')}
+            >
+              Document Text
+            </button>
+            <button
+              className={`tab-button${activeTab === 'graph' ? ' active' : ''}`}
+              onClick={() => setActiveTab('graph')}
+              disabled={!selectedAnnotationId}
+              title={!selectedAnnotationId ? 'Select an annotation to view graph' : 'View annotation graph'}
+            >
+              Annotation Graph
+            </button>
+          </div>
+
+          {/* Tab Content */}
+          <div className="tab-content">
+            {activeTab === 'document' ? (
+              <DocumentViewer
+                doc={currentDoc}
+                spans={visibleSpans}
+                spanColorMap={spanColorMap}
+                onSpanCreated={handleSpanCreated}
+                fontSize={fontSize}
+                onFontSizeChange={handleFontSizeChange}
+                focusedSpanId={focusedSpanId}
+              />
+            ) : (
+              <AnnotationGraph
+                selectedAnnotationId={selectedAnnotationId}
+                annotations={annotations}
+                spanColorMap={spanColorMap}
+                docAnnColorMap={docAnnColorMap}
+                stepColorMap={stepColorMap}
+              />
+            )}
+          </div>
+        </div>
       ) : (
         !loading && (
           <div className="empty-state">
