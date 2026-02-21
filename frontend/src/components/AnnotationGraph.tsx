@@ -1,8 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import ReactFlow, {
   Background,
   Controls,
   MarkerType,
+  useNodesState,
+  useEdgesState,
 } from 'reactflow';
 import type { Node, Edge } from 'reactflow';
 import 'reactflow/dist/style.css';
@@ -24,14 +26,15 @@ export function AnnotationGraph({
   docAnnColorMap,
   stepColorMap,
 }: Props) {
-  const { nodes, edges } = useMemo(() => {
+  // Compute initial nodes and edges
+  const { initialNodes, initialEdges } = useMemo(() => {
     if (!selectedAnnotationId) {
-      return { nodes: [], edges: [] };
+      return { initialNodes: [], initialEdges: [] };
     }
 
     const selectedAnn = annotations.document_annotations.find((a) => a.id === selectedAnnotationId);
     if (!selectedAnn) {
-      return { nodes: [], edges: [] };
+      return { initialNodes: [], initialEdges: [] };
     }
 
     const color = docAnnColorMap.get(selectedAnn.id);
@@ -194,8 +197,18 @@ export function AnnotationGraph({
       });
     });
 
-    return { nodes, edges };
+    return { initialNodes: nodes, initialEdges: edges };
   }, [selectedAnnotationId, annotations, spanColorMap, docAnnColorMap, stepColorMap]);
+
+  // Use React Flow state hooks to enable dragging
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+  // Update nodes and edges when annotation changes
+  useEffect(() => {
+    setNodes(initialNodes);
+    setEdges(initialEdges);
+  }, [initialNodes, initialEdges, setNodes, setEdges]);
 
   if (!selectedAnnotationId) {
     return (
@@ -218,17 +231,19 @@ export function AnnotationGraph({
       <ReactFlow
         nodes={nodes}
         edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
         fitView
         fitViewOptions={{ padding: 0.2 }}
-        nodesDraggable={false}
+        nodesDraggable={true}
         nodesConnectable={false}
-        elementsSelectable={false}
-        zoomOnScroll={false}
-        panOnDrag={false}
+        elementsSelectable={true}
+        zoomOnScroll={true}
+        panOnDrag={true}
         proOptions={{ hideAttribution: true }}
       >
         <Background />
-        <Controls showInteractive={false} />
+        <Controls />
       </ReactFlow>
     </div>
   );

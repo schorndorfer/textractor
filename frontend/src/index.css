@@ -11,6 +11,7 @@
   --sidebar-shade-2: #f4f1ed;
   --border: #dee2e6;
   --sidebar-border: #e8e6e3;
+  --separator: #2f4f4f;
   --text: #212529;
   --text-muted: #6c757d;
   --primary: #4a6fa5;
@@ -49,12 +50,12 @@ input { font-family: inherit; font-size: 13px; }
   overflow: hidden;
   transition: width 0.2s ease;
   background: var(--sidebar-bg);
-  border-right: 1px solid var(--sidebar-border);
+  border-right: 2px solid var(--separator);
 }
 
 .sidebar-container:last-child {
   border-right: none;
-  border-left: 1px solid var(--sidebar-border);
+  border-left: 2px solid var(--separator);
 }
 
 .sidebar-container.collapsed {
