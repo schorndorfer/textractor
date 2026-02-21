@@ -89,8 +89,10 @@ input { font-family: inherit; font-size: 13px; }
   width: 4px;
   background: transparent;
   cursor: col-resize;
-  position: relative;
-  flex-shrink: 0;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 100;
   transition: background 0.2s;
 }
 
@@ -105,6 +107,14 @@ input { font-family: inherit; font-size: 13px; }
   bottom: 0;
   left: -4px;
   right: -4px;
+}
+
+.sidebar-left .resize-handle {
+  right: 0;
+}
+
+.sidebar-right .resize-handle {
+  left: 0;
 }
 
 .loading-state,
