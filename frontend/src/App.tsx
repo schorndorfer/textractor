@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { api } from './api/client';
 import { AnnotationPanel } from './components/AnnotationPanel';
 import { DocumentList } from './components/DocumentList';
 import { DocumentViewer } from './components/DocumentViewer';
+import { ResizeHandle } from './components/ResizeHandle';
 import type { AnnotationFile, Document, DocumentSummary, Span } from './types';
 
 // Color palette for document annotations (hue, saturation, lightness)
@@ -23,6 +24,11 @@ const COLOR_PALETTE = [
 
 export type SpanColorMap = Map<string, { bg: string; border: string }>;
 
+const MIN_SIDEBAR_WIDTH = 200;
+const MAX_SIDEBAR_WIDTH = 600;
+const DEFAULT_LEFT_WIDTH = 260;
+const DEFAULT_RIGHT_WIDTH = 380;
+
 export function App() {
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
@@ -32,6 +38,12 @@ export function App() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
+
+  // Sidebar width and collapse state
+  const [leftSidebarWidth, setLeftSidebarWidth] = useState(DEFAULT_LEFT_WIDTH);
+  const [rightSidebarWidth, setRightSidebarWidth] = useState(DEFAULT_RIGHT_WIDTH);
+  const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
+  const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false);
 
   const refreshDocuments = () => {
     api.listDocuments().then(setDocuments).catch(console.error);
@@ -162,15 +174,60 @@ export function App() {
     return annotations.spans.filter((span) => visibleSpanIds.has(span.id));
   }, [annotations, selectedAnnotationId]);
 
-  return (
-    <div className="app-layout">
-      <DocumentList
-        documents={documents}
-        selectedId={selectedDocId}
-        onSelect={setSelectedDocId}
-        onRefresh={refreshDocuments}
-      />
+  // Resize handlers
+  const handleLeftResize = useCallback((delta: number) => {
+    setLeftSidebarWidth((prev) => {
+      const newWidth = prev + delta;
+      return Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, newWidth));
+    });
+  }, []);
 
+  const handleRightResize = useCallback((delta: number) => {
+    setRightSidebarWidth((prev) => {
+      const newWidth = prev + delta;
+      return Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, newWidth));
+    });
+  }, []);
+
+  // Collapse/expand handlers
+  const toggleLeftSidebar = useCallback(() => {
+    setLeftSidebarCollapsed((prev) => !prev);
+  }, []);
+
+  const toggleRightSidebar = useCallback(() => {
+    setRightSidebarCollapsed((prev) => !prev);
+  }, []);
+
+  return (
+    <div
+      className="app-layout"
+      style={{
+        gridTemplateColumns: `${leftSidebarCollapsed ? 40 : leftSidebarWidth}px 1fr ${rightSidebarCollapsed ? 40 : rightSidebarWidth}px`,
+      }}
+    >
+      {/* Left Sidebar (Document List) */}
+      <div className={`sidebar-container${leftSidebarCollapsed ? ' collapsed' : ''}`}>
+        <button
+          className="sidebar-toggle sidebar-toggle-left"
+          onClick={toggleLeftSidebar}
+          title={leftSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {leftSidebarCollapsed ? '›' : '‹'}
+        </button>
+        {!leftSidebarCollapsed && (
+          <DocumentList
+            documents={documents}
+            selectedId={selectedDocId}
+            onSelect={setSelectedDocId}
+            onRefresh={refreshDocuments}
+          />
+        )}
+      </div>
+
+      {/* Left Resize Handle */}
+      {!leftSidebarCollapsed && <ResizeHandle onResize={handleLeftResize} direction="left" />}
+
+      {/* Main Content Area */}
       {loading && (
         <div className="loading-state">
           <span>Loading…</span>
@@ -178,13 +235,33 @@ export function App() {
       )}
 
       {!loading && currentDoc && annotations ? (
-        <>
-          <DocumentViewer
-            doc={currentDoc}
-            spans={visibleSpans}
-            spanColorMap={spanColorMap}
-            onSpanCreated={handleSpanCreated}
-          />
+        <DocumentViewer
+          doc={currentDoc}
+          spans={visibleSpans}
+          spanColorMap={spanColorMap}
+          onSpanCreated={handleSpanCreated}
+        />
+      ) : (
+        !loading && (
+          <div className="empty-state">
+            <p>Select a document to begin annotating</p>
+          </div>
+        )
+      )}
+
+      {/* Right Resize Handle */}
+      {!rightSidebarCollapsed && <ResizeHandle onResize={handleRightResize} direction="right" />}
+
+      {/* Right Sidebar (Annotation Panel) */}
+      <div className={`sidebar-container${rightSidebarCollapsed ? ' collapsed' : ''}`}>
+        <button
+          className="sidebar-toggle sidebar-toggle-right"
+          onClick={toggleRightSidebar}
+          title={rightSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {rightSidebarCollapsed ? '‹' : '›'}
+        </button>
+        {!rightSidebarCollapsed && currentDoc && annotations && (
           <AnnotationPanel
             annotations={annotations}
             onChange={handleAnnotationChange}
@@ -197,14 +274,8 @@ export function App() {
             selectedAnnotationId={selectedAnnotationId}
             onAnnotationSelect={handleAnnotationSelect}
           />
-        </>
-      ) : (
-        !loading && (
-          <div className="empty-state">
-            <p>Select a document to begin annotating</p>
-          </div>
-        )
-      )}
+        )}
+      </div>
     </div>
   );
 }
