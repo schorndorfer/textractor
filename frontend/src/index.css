@@ -4,7 +4,10 @@
 :root {
   --bg: #f8f9fa;
   --surface: #ffffff;
+  --sidebar-bg: #faf8f5;
+  --sidebar-surface: #fdfcfa;
   --border: #dee2e6;
+  --sidebar-border: #e8e6e3;
   --text: #212529;
   --text-muted: #6c757d;
   --primary: #4a6fa5;
@@ -42,13 +45,13 @@ input { font-family: inherit; font-size: 13px; }
   flex-direction: column;
   overflow: hidden;
   transition: width 0.2s ease;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
 }
 
 .sidebar-container:last-child {
   border-right: none;
-  border-left: 1px solid var(--border);
+  border-left: 1px solid var(--sidebar-border);
 }
 
 .sidebar-container.collapsed {
@@ -61,8 +64,8 @@ input { font-family: inherit; font-size: 13px; }
 .sidebar-toggle {
   width: 24px;
   height: 24px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--sidebar-surface);
+  border: 1px solid var(--sidebar-border);
   border-radius: 4px;
   cursor: pointer;
   display: flex;
@@ -76,7 +79,7 @@ input { font-family: inherit; font-size: 13px; }
 }
 
 .sidebar-toggle:hover {
-  background: var(--bg);
+  background: #f5f3f0;
   color: var(--primary);
   border-color: var(--primary);
 }
@@ -128,7 +131,7 @@ input { font-family: inherit; font-size: 13px; }
 
 /* ── Document list sidebar ─────────────────────────────────────────────── */
 .doc-list {
-  background: var(--surface);
+  background: var(--sidebar-bg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -141,7 +144,8 @@ input { font-family: inherit; font-size: 13px; }
   align-items: center;
   gap: 8px;
   padding: 12px 12px 8px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--sidebar-border);
+  background: var(--sidebar-surface);
 }
 
 .doc-list-header h2 { font-size: 14px; font-weight: 600; flex: 1; }
@@ -167,8 +171,8 @@ input { font-family: inherit; font-size: 13px; }
   top: 100%;
   right: 0;
   margin-top: 4px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--sidebar-surface);
+  border: 1px solid var(--sidebar-border);
   border-radius: 4px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 1000;
@@ -182,10 +186,11 @@ input { font-family: inherit; font-size: 13px; }
   cursor: pointer;
   transition: background 0.1s;
   color: var(--text);
+  background: var(--sidebar-surface);
 }
 
 .upload-menu-item:hover {
-  background: var(--bg);
+  background: #f5f3f0;
 }
 
 .upload-menu-item:first-child {
@@ -200,7 +205,8 @@ input { font-family: inherit; font-size: 13px; }
 
 .filter-tabs {
   display: flex;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--sidebar-border);
+  background: var(--sidebar-surface);
 }
 
 .filter-tab {
@@ -222,9 +228,10 @@ input { font-family: inherit; font-size: 13px; }
 
 .doc-item {
   padding: 10px 12px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--sidebar-border);
   cursor: pointer;
   transition: background 0.1s;
+  background: var(--sidebar-bg);
 }
 .doc-item:hover { background: #f0f4ff; }
 .doc-item.selected { background: #e8eeff; }
@@ -286,7 +293,7 @@ input { font-family: inherit; font-size: 13px; }
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--surface);
+  background: var(--sidebar-bg);
   height: 100%;
   flex: 1;
 }
@@ -296,7 +303,8 @@ input { font-family: inherit; font-size: 13px; }
   align-items: center;
   gap: 8px;
   padding: 12px 14px 10px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--sidebar-border);
+  background: var(--sidebar-surface);
   flex-shrink: 0;
 }
 .panel-header h2 { font-size: 14px; font-weight: 600; flex: 1; }
@@ -326,12 +334,13 @@ input { font-family: inherit; font-size: 13px; }
 }
 
 .panel-section {
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--sidebar-border);
   flex-shrink: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   max-height: 33vh;
+  background: var(--sidebar-bg);
 }
 
 .panel-section h3 {
@@ -342,18 +351,20 @@ input { font-family: inherit; font-size: 13px; }
   color: var(--text-muted);
   padding: 10px 14px 6px;
   flex-shrink: 0;
+  background: var(--sidebar-surface);
 }
 
 /* ── Span list ─────────────────────────────────────────────────────────── */
-.span-list { overflow-y: auto; }
+.span-list { overflow-y: auto; background: var(--sidebar-bg); }
 
 .span-item {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 5px 14px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--sidebar-border);
   font-size: 12px;
+  background: var(--sidebar-bg);
 }
 .span-text { font-style: italic; color: var(--primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
 .span-offsets { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
@@ -370,7 +381,8 @@ input { font-family: inherit; font-size: 13px; }
 .item-list { overflow-y: auto; }
 
 .list-item {
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--sidebar-border);
+  background: var(--sidebar-bg);
 }
 
 .list-item.selected {
@@ -389,7 +401,7 @@ input { font-family: inherit; font-size: 13px; }
 }
 
 .item-row:hover {
-  background: #f8f9fa;
+  background: #f5f3f0;
 }
 
 .list-item.selected .item-row:hover {
@@ -425,6 +437,7 @@ input { font-family: inherit; font-size: 13px; }
   display: flex;
   flex-direction: column;
   gap: 8px;
+  background: var(--sidebar-bg);
 }
 
 .edit-actions { display: flex; gap: 6px; }
@@ -513,12 +526,13 @@ input { font-family: inherit; font-size: 13px; }
 
 .concept-input {
   width: 100%;
-  border: 1px solid var(--border);
+  border: 1px solid var(--sidebar-border);
   border-radius: 4px;
   padding: 5px 8px;
   outline: none;
+  background: var(--sidebar-surface);
 }
-.concept-input:focus { border-color: var(--primary); }
+.concept-input:focus { border-color: var(--primary); background: var(--surface); }
 .concept-input.has-value { border-color: var(--success); background: #f0fff4; }
 
 .search-spinner {
