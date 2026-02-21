@@ -143,8 +143,8 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
               <span className="doc-item-id">{doc.id}</span>
               {doc.is_annotated && <span className="badge">✓</span>}
             </div>
-            {doc.metadata.note_type != null && (
-              <div className="doc-category">{String(doc.metadata.note_type)}</div>
+            {doc.metadata.category != null && (
+              <div className="doc-category">{String(doc.metadata.category)}</div>
             )}
           </li>
         ))}
