@@ -31,6 +31,7 @@ export function App() {
   const [isDirty, setIsDirty] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
 
   const refreshDocuments = () => {
     api.listDocuments().then(setDocuments).catch(console.error);
@@ -85,6 +86,7 @@ export function App() {
   useEffect(() => {
     if (!selectedDocId) return;
     setLoading(true);
+    setSelectedAnnotationId(null); // Clear selection when switching documents
     Promise.all([api.getDocument(selectedDocId), api.getAnnotations(selectedDocId)])
       .then(([doc, ann]) => {
         setCurrentDoc(doc);
@@ -119,6 +121,34 @@ export function App() {
     }
   };
 
+  const handleAnnotationSelect = (annotationId: string | null) => {
+    setSelectedAnnotationId((prev) => (prev === annotationId ? null : annotationId));
+  };
+
+  // Compute visible spans based on selected annotation
+  const visibleSpans = useMemo(() => {
+    if (!annotations) return [];
+    if (!selectedAnnotationId) return annotations.spans;
+
+    const selectedAnn = annotations.document_annotations.find((a) => a.id === selectedAnnotationId);
+    if (!selectedAnn) return annotations.spans;
+
+    const visibleSpanIds = new Set<string>();
+
+    // Add direct evidence spans
+    selectedAnn.evidence_span_ids.forEach((id) => visibleSpanIds.add(id));
+
+    // Add indirect spans via reasoning steps
+    selectedAnn.reasoning_step_ids.forEach((stepId) => {
+      const step = annotations.reasoning_steps.find((s) => s.id === stepId);
+      if (step) {
+        step.span_ids.forEach((spanId) => visibleSpanIds.add(spanId));
+      }
+    });
+
+    return annotations.spans.filter((span) => visibleSpanIds.has(span.id));
+  }, [annotations, selectedAnnotationId]);
+
   return (
     <div className="app-layout">
       <DocumentList
@@ -138,7 +168,7 @@ export function App() {
         <>
           <DocumentViewer
             doc={currentDoc}
-            spans={annotations.spans}
+            spans={visibleSpans}
             spanColorMap={spanColorMap}
             onSpanCreated={handleSpanCreated}
           />
@@ -150,6 +180,8 @@ export function App() {
             saveError={saveError}
             spanColorMap={spanColorMap}
             docAnnColorMap={docAnnColorMap}
+            selectedAnnotationId={selectedAnnotationId}
+            onAnnotationSelect={handleAnnotationSelect}
           />
         </>
       ) : (

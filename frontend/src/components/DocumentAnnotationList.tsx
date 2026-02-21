@@ -13,6 +13,8 @@ interface Props {
   availableSteps: ReasoningStep[];
   onChange: (anns: DocumentAnnotation[]) => void;
   docAnnColorMap: SpanColorMap;
+  selectedAnnotationId: string | null;
+  onAnnotationSelect: (annotationId: string | null) => void;
 }
 
 export function DocumentAnnotationList({
@@ -21,6 +23,8 @@ export function DocumentAnnotationList({
   availableSteps,
   onChange,
   docAnnColorMap,
+  selectedAnnotationId,
+  onAnnotationSelect,
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftConcept, setDraftConcept] = useState<TerminologyConcept | null>(null);
@@ -80,10 +84,11 @@ export function DocumentAnnotationList({
     <div className="item-list">
       {annotations.map((ann) => {
         const color = docAnnColorMap.get(ann.id);
+        const isSelected = selectedAnnotationId === ann.id;
         return (
           <div
             key={ann.id}
-            className={`list-item${editingId === ann.id ? ' editing' : ''}`}
+            className={`list-item${editingId === ann.id ? ' editing' : ''}${isSelected ? ' selected' : ''}`}
           >
             {editingId === ann.id ? (
               <div className="edit-form">
@@ -136,7 +141,7 @@ export function DocumentAnnotationList({
               </div>
             </div>
           ) : (
-            <div className="item-row">
+            <div className="item-row" onClick={() => onAnnotationSelect(ann.id)}>
               {color && (
                 <span
                   className="color-indicator"
@@ -155,7 +160,7 @@ export function DocumentAnnotationList({
                   {ann.evidence_span_ids.length} span(s), {ann.reasoning_step_ids.length} step(s)
                 </span>
               </div>
-              <div className="item-actions">
+              <div className="item-actions" onClick={(e) => e.stopPropagation()}>
                 <button
                   onClick={() => {
                     setEditingId(ann.id);

@@ -12,6 +12,8 @@ interface Props {
   saveError: string | null;
   spanColorMap: SpanColorMap;
   docAnnColorMap: SpanColorMap;
+  selectedAnnotationId: string | null;
+  onAnnotationSelect: (annotationId: string | null) => void;
 }
 
 export function AnnotationPanel({
@@ -22,6 +24,8 @@ export function AnnotationPanel({
   saveError,
   spanColorMap,
   docAnnColorMap,
+  selectedAnnotationId,
+  onAnnotationSelect,
 }: Props) {
   const updateSpans = (spans: Span[]) => {
     // Cascade: remove deleted span IDs from steps and doc annotations
@@ -82,6 +86,8 @@ export function AnnotationPanel({
           availableSteps={annotations.reasoning_steps}
           onChange={updateDocAnns}
           docAnnColorMap={docAnnColorMap}
+          selectedAnnotationId={selectedAnnotationId}
+          onAnnotationSelect={onAnnotationSelect}
         />
       </section>
     </aside>

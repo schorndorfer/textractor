@@ -253,12 +253,27 @@ input { font-family: inherit; font-size: 13px; }
   border-bottom: 1px solid #f0f0f0;
 }
 
+.list-item.selected {
+  background: #e8f4ff;
+  border-left: 3px solid var(--primary);
+}
+
 .item-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 6px 14px;
   gap: 8px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.item-row:hover {
+  background: #f8f9fa;
+}
+
+.list-item.selected .item-row:hover {
+  background: #d9ebff;
 }
 
 .item-info { display: flex; flex-direction: column; min-width: 0; flex: 1; }
