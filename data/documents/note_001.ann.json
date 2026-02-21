@@ -1,0 +1,38 @@
+{
+  "doc_id": "note_001",
+  "spans": [
+    {
+      "id": "span_k3hompfh",
+      "start": 189,
+      "end": 203,
+      "text": "hyperlipidemia"
+    }
+  ],
+  "reasoning_steps": [
+    {
+      "id": "step_fyeovp5u",
+      "concept": {
+        "code": "55822004",
+        "display": "Hyperlipidemia",
+        "system": "SNOMED-CT"
+      },
+      "span_ids": [
+        "span_k3hompfh"
+      ]
+    }
+  ],
+  "document_annotations": [
+    {
+      "id": "ann_rns1x2qv",
+      "concept": {
+        "code": "38341003",
+        "display": "Hypertensive disorder",
+        "system": "SNOMED-CT"
+      },
+      "evidence_span_ids": [],
+      "reasoning_step_ids": [
+        "step_fyeovp5u"
+      ]
+    }
+  ]
+}
