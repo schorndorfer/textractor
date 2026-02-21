@@ -122,7 +122,13 @@ export function App() {
   };
 
   const handleAnnotationSelect = (annotationId: string | null) => {
-    setSelectedAnnotationId((prev) => (prev === annotationId ? null : annotationId));
+    console.log('handleAnnotationSelect called with:', annotationId);
+    console.log('Previous selection:', selectedAnnotationId);
+    setSelectedAnnotationId((prev) => {
+      const newValue = prev === annotationId ? null : annotationId;
+      console.log('New selection will be:', newValue);
+      return newValue;
+    });
   };
 
   // Compute visible spans based on selected annotation

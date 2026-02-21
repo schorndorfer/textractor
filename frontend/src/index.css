@@ -276,11 +276,29 @@ input { font-family: inherit; font-size: 13px; }
   background: #d9ebff;
 }
 
-.item-info { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-.concept-label { font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  cursor: pointer;
+}
+.concept-label {
+  font-size: 12px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
 .concept-code { color: var(--text-muted); font-weight: 400; }
 .item-meta { font-size: 11px; color: var(--text-muted); }
-.item-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.item-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  cursor: default;
+}
 
 .edit-form {
   padding: 8px 14px;
