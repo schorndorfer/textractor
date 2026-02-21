@@ -39,9 +39,14 @@ interface Props {
   spans: Span[];
   spanColorMap: SpanColorMap;
   onSpanCreated: (span: Span) => void;
+  fontSize: number;
+  onFontSizeChange: (delta: number) => void;
 }
 
-export function DocumentViewer({ doc, spans, spanColorMap, onSpanCreated }: Props) {
+const MIN_FONT_SIZE = 10;
+const MAX_FONT_SIZE = 24;
+
+export function DocumentViewer({ doc, spans, spanColorMap, onSpanCreated, fontSize, onFontSizeChange }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleMouseUp = () => {
@@ -66,22 +71,44 @@ export function DocumentViewer({ doc, spans, spanColorMap, onSpanCreated }: Prop
   return (
     <main className="doc-viewer">
       <div className="doc-viewer-header">
-        <h2 className="doc-id">{doc.id}</h2>
-        {Object.keys(doc.metadata).length > 0 && (
-          <div className="doc-meta">
-            {Object.entries(doc.metadata).map(([k, v]) => (
-              <span key={k} className="meta-tag">
-                <strong>{k}:</strong> {String(v)}
-              </span>
-            ))}
-          </div>
-        )}
+        <div className="doc-viewer-info">
+          <h2 className="doc-id">{doc.id}</h2>
+          {Object.keys(doc.metadata).length > 0 && (
+            <div className="doc-meta">
+              {Object.entries(doc.metadata).map(([k, v]) => (
+                <span key={k} className="meta-tag">
+                  <strong>{k}:</strong> {String(v)}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="font-size-controls">
+          <span className="font-size-label">Text Size</span>
+          <button
+            className="font-size-btn"
+            onClick={() => onFontSizeChange(-1)}
+            disabled={fontSize <= MIN_FONT_SIZE}
+            title="Decrease font size"
+          >
+            −
+          </button>
+          <button
+            className="font-size-btn"
+            onClick={() => onFontSizeChange(1)}
+            disabled={fontSize >= MAX_FONT_SIZE}
+            title="Increase font size"
+          >
+            +
+          </button>
+        </div>
       </div>
       <div
         ref={containerRef}
         onMouseUp={handleMouseUp}
         onDragStart={(e) => e.preventDefault()}
         className="doc-text"
+        style={{ fontSize: `${fontSize}px`, lineHeight: 1.7 }}
       >
         <SpanHighlighter text={doc.text} spans={spans} colorMap={spanColorMap} />
       </div>

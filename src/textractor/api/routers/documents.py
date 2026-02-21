@@ -16,31 +16,55 @@ def list_documents(store: DocumentStore = Depends(get_store)) -> list[DocumentSu
     return store.list_documents()
 
 
-@router.post("/upload", response_model=DocumentSummary)
-async def upload_document(
-    file: UploadFile = File(...),
+@router.post("/upload", response_model=list[DocumentSummary])
+async def upload_documents(
+    files: list[UploadFile] = File(...),
     store: DocumentStore = Depends(get_store),
-) -> DocumentSummary:
-    if not (file.filename or "").endswith(".json"):
-        raise HTTPException(status_code=400, detail="Only .json files are accepted")
+) -> list[DocumentSummary]:
+    """Upload one or more document JSON files."""
+    summaries: list[DocumentSummary] = []
+    errors: list[str] = []
 
-    content = await file.read()
-    try:
-        data = json.loads(content)
-        doc = Document.model_validate(data)
-    except Exception as exc:
-        raise HTTPException(status_code=422, detail=f"Invalid document JSON: {exc}") from exc
+    for file in files:
+        if not (file.filename or "").endswith(".json"):
+            errors.append(f"{file.filename}: Only .json files are accepted")
+            continue
 
-    if store.document_exists(doc.id):
-        raise HTTPException(status_code=409, detail=f"Document '{doc.id}' already exists")
+        try:
+            content = await file.read()
+            data = json.loads(content)
+            doc = Document.model_validate(data)
 
-    store.save_document(doc)
-    return DocumentSummary(
-        id=doc.id,
-        metadata=doc.metadata,
-        is_annotated=False,
-        text_preview=doc.text[:200],
-    )
+            if store.document_exists(doc.id):
+                errors.append(f"{file.filename}: Document '{doc.id}' already exists")
+                continue
+
+            store.save_document(doc)
+
+            # Check if annotations exist
+            ann_path = store._ann_path(doc.id)
+            is_annotated = ann_path.exists()
+
+            summaries.append(
+                DocumentSummary(
+                    id=doc.id,
+                    metadata=doc.metadata,
+                    is_annotated=is_annotated,
+                    text_preview=doc.text[:200],
+                )
+            )
+        except Exception as exc:
+            errors.append(f"{file.filename}: Invalid document JSON: {exc}")
+
+    if errors and not summaries:
+        # All uploads failed
+        raise HTTPException(status_code=422, detail="; ".join(errors))
+
+    # Return successfully uploaded documents (with warnings in logs if partial failure)
+    if errors:
+        logger.warning("Partial upload failure: %s", "; ".join(errors))
+
+    return summaries
 
 
 @router.get("/{doc_id}", response_model=Document)
