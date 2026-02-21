@@ -251,6 +251,13 @@ input { font-family: inherit; font-size: 13px; }
   font-size: 10px;
 }
 
+.doc-category {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 .empty-hint { padding: 16px 12px; color: var(--text-muted); font-size: 12px; }
 
 /* ── Document viewer ───────────────────────────────────────────────────── */
