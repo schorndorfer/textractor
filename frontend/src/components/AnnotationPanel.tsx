@@ -15,6 +15,8 @@ interface Props {
   stepColorMap: SpanColorMap;
   selectedAnnotationId: string | null;
   onAnnotationSelect: (annotationId: string | null) => void;
+  onToggleCollapse?: () => void;
+  collapsed?: boolean;
 }
 
 export function AnnotationPanel({
@@ -28,6 +30,8 @@ export function AnnotationPanel({
   stepColorMap,
   selectedAnnotationId,
   onAnnotationSelect,
+  onToggleCollapse,
+  collapsed,
 }: Props) {
   const updateSpans = (spans: Span[]) => {
     // Cascade: remove deleted span IDs from steps and doc annotations
@@ -59,6 +63,15 @@ export function AnnotationPanel({
   return (
     <aside className="annotation-panel">
       <div className="panel-header">
+        {onToggleCollapse && (
+          <button
+            className="sidebar-toggle"
+            onClick={onToggleCollapse}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            ›
+          </button>
+        )}
         <h2>Annotations</h2>
         <button onClick={onSave} disabled={!isDirty} className={`save-btn${isDirty ? ' dirty' : ''}`}>
           Save
