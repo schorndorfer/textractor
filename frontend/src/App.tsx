@@ -73,6 +73,8 @@ export function App() {
       setLoading(true);
       setSelectedAnnotationId(null); // Clear selection when switching documents
       setFocusedSpanId(null); // Clear focused span when switching documents
+      setIsPreAnnotated(false); // Clear pre-annotated flag
+      setPreAnnotateError(null); // Clear pre-annotate errors
 
       try {
         const [doc, ann] = await Promise.all([
@@ -195,6 +197,8 @@ export function App() {
       setAnnotations(deepClone(originalAnnotations));
       setIsDirty(false);
       setSaveError(null);
+      setPreAnnotateError(null); // Clear pre-annotate errors
+      setIsPreAnnotated(false); // Clear pre-annotated flag
     }
   };
 
