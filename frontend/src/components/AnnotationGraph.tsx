@@ -73,7 +73,12 @@ export function AnnotationGraph({
               backgroundColor: color?.bg,
             }}
           >
-            <div className="node-label">{selectedAnn.concept.display}</div>
+            <div className="node-label">
+              {selectedAnn.source === 'model' && (
+                <span className="ai-badge" title="Model-generated">✨</span>
+              )}
+              {selectedAnn.concept.display}
+            </div>
             <div className="node-code">{selectedAnn.concept.code}</div>
           </div>
         ),
@@ -106,7 +111,12 @@ export function AnnotationGraph({
                 backgroundColor: stepColor?.bg,
               }}
             >
-              <div className="node-label">{step.concept.display}</div>
+              <div className="node-label">
+                {step.source === 'model' && (
+                  <span className="ai-badge" title="Model-generated">✨</span>
+                )}
+                {step.concept.display}
+              </div>
               <div className="node-code">{step.concept.code}</div>
               {step.span_ids.length > 0 && (
                 <div className="node-meta">{step.span_ids.length} span(s)</div>
