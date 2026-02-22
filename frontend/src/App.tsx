@@ -160,6 +160,9 @@ export function App() {
       // Auto-switch to graph tab when annotation is selected
       if (newValue !== null) {
         setActiveTab('graph');
+      } else {
+        // Switch back to document tab when annotation is deselected
+        setActiveTab('document');
       }
       return newValue;
     });
