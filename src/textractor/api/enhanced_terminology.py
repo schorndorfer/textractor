@@ -1,4 +1,4 @@
-"""Enhanced terminology search using SNOMED CT when available, with TSV fallback."""
+"""SNOMED CT terminology search."""
 from __future__ import annotations
 
 import logging
@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Optional, Protocol
 
 from .models import TerminologyConcept, TerminologyInfo
-from .terminology import TerminologyIndex
 
 logger = logging.getLogger(__name__)
 
@@ -25,14 +24,17 @@ class SNOMEDSearchProtocol(Protocol):
 
 class EnhancedTerminologyIndex:
     """
-    Terminology search with fallback options:
-    1. SNOMED CT (SQLite FTS5 - persistent, fast, low memory)
-    2. TSV (simple, limited)
+    SNOMED CT terminology search using SQLite FTS5.
+
+    Features:
+    - Persistent SQLite database storage
+    - Fast full-text search with FTS5
+    - Low memory footprint
+    - Automatic index building from RF2 files
     """
 
     def __init__(self, db_path: Optional[Path] = None) -> None:
         self._snomed_search: Optional[SNOMEDSearchProtocol] = None
-        self._tsv_index = TerminologyIndex()
         self._snomed_loaded = False
         self._snomed_count: Optional[int] = None
         self._snomed_path: Optional[str] = None
@@ -40,7 +42,7 @@ class EnhancedTerminologyIndex:
 
     @property
     def is_loaded(self) -> bool:
-        return self._snomed_loaded or self._tsv_index.is_loaded
+        return self._snomed_loaded
 
     def info(self) -> TerminologyInfo:
         if self._snomed_loaded and self._snomed_count is not None:
@@ -49,7 +51,11 @@ class EnhancedTerminologyIndex:
                 file_name=f"SNOMED CT ({self._snomed_count} descriptions)",
                 loaded=True,
             )
-        return self._tsv_index.info()
+        return TerminologyInfo(
+            total_concepts=0,
+            file_name=None,
+            loaded=False,
+        )
 
     def load_snomed(self, rf2_dir: Path) -> int:
         """
@@ -94,21 +100,12 @@ class EnhancedTerminologyIndex:
             logger.error("Failed to load SNOMED CT from %s: %s", rf2_dir, exc)
             return 0
 
-    def load_from_path(self, path: Path) -> int:
-        """Load TSV terminology file (fallback)."""
-        return self._tsv_index.load_from_path(path)
-
-    def load_from_bytes(self, data: bytes, filename: str) -> int:
-        """Load TSV terminology from bytes (for file upload)."""
-        return self._tsv_index.load_from_bytes(data, filename)
-
     def search(self, query: str, limit: int = 20) -> list[TerminologyConcept]:
-        """
-        Search for concepts. Uses SNOMED CT if loaded, otherwise TSV index.
-        """
-        if self._snomed_loaded and self._snomed_search:
-            return self._search_snomed(query, limit)
-        return self._tsv_index.search(query, limit)
+        """Search for SNOMED CT concepts."""
+        if not self._snomed_loaded or not self._snomed_search:
+            return []
+
+        return self._search_snomed(query, limit)
 
     def _search_snomed(self, query: str, limit: int) -> list[TerminologyConcept]:
         """Search using SNOMED CT and convert to TerminologyConcept."""

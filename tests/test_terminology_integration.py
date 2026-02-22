@@ -74,11 +74,11 @@ def test_enhanced_index_search_diabetes(enhanced_index, snomed_dir):
     assert any("diabetes" in display for display in result_displays)
 
 
-def test_enhanced_index_tsv_fallback():
-    """Test that TSV fallback works when SNOMED not loaded."""
+def test_enhanced_index_without_snomed():
+    """Test that index returns empty results when SNOMED not loaded."""
     index = EnhancedTerminologyIndex()
 
-    # Don't load SNOMED - index should still work but be empty
+    # Don't load SNOMED - index should be empty
     assert not index.is_loaded
 
     info = index.info()

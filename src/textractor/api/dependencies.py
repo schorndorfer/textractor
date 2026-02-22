@@ -18,12 +18,11 @@ def init_store(root: Path) -> None:
     _store = DocumentStore(root)
 
 
-def init_terminology(tsv_path: Optional[Path], snomed_dir: Optional[Path] = None) -> None:
+def init_terminology(snomed_dir: Optional[Path] = None) -> None:
     """
-    Initialize terminology index.
+    Initialize SNOMED CT terminology index.
 
     Args:
-        tsv_path: Optional path to TSV terminology file (legacy)
         snomed_dir: Optional path to SNOMED CT RF2 directory (data/terminology/SnomedCT)
     """
     global _terminology
@@ -35,19 +34,15 @@ def init_terminology(tsv_path: Optional[Path], snomed_dir: Optional[Path] = None
 
     _terminology = EnhancedTerminologyIndex(db_path=db_path)
 
-    # Try to load SNOMED CT first (if directory exists)
+    # Load SNOMED CT if directory exists
     if snomed_dir and snomed_dir.exists():
         count = _terminology.load_snomed(snomed_dir)
         if count > 0:
             logger.info("Loaded SNOMED CT with %d active descriptions", count)
-            return  # SNOMED loaded successfully, don't load TSV
-
-    # Fall back to TSV if provided
-    if tsv_path and tsv_path.exists():
-        count = _terminology.load_from_path(tsv_path)
-        logger.info("Loaded %d concepts from TSV: %s", count, tsv_path)
+        else:
+            logger.warning("Failed to load SNOMED CT from %s", snomed_dir)
     else:
-        logger.info("No terminology loaded - search will be empty")
+        logger.info("No SNOMED directory provided - terminology search will be empty")
 
 
 def get_store() -> DocumentStore:

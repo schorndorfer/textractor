@@ -15,11 +15,6 @@ uv sync                                                     # install/update dep
 
 # Run backend (port 8000, hot-reload)
 TEXTRACTOR_DOC_ROOT=./data/documents uv run textractor
-
-# With a terminology file loaded at startup
-TEXTRACTOR_DOC_ROOT=./data/documents \
-  TEXTRACTOR_TERMINOLOGY_PATH=./data/snomed_subset.tsv \
-  uv run textractor
 ```
 
 FastAPI interactive docs available at `http://localhost:8000/docs` when running.
@@ -38,7 +33,7 @@ npm run build      # production build → frontend/dist/
 ```bash
 uv sync --extra dev                    # install test dependencies (pytest)
 uv run pytest                          # run all tests
-uv run pytest tests/test_snomed_search.py  # run specific test file
+uv run pytest tests/test_snomed.py     # run specific test file
 uv run pytest -v                       # verbose output
 uv run pytest -k "search"              # run tests matching pattern
 ```
@@ -65,33 +60,27 @@ Browser:    http://localhost:5173
 |---|---|
 | `models.py` | All Pydantic models: `Span`, `ReasoningStep` (with optional `note` field), `DocumentAnnotation`, `AnnotationFile`, `Document`, `DocumentSummary`, `TerminologyConcept`, `TerminologyInfo` |
 | `storage.py` | `DocumentStore`: recursively scans `TEXTRACTOR_DOC_ROOT` for `*.json` docs; companion annotations stored flat as `{doc_id}.ann.json` in root |
-| `terminology.py` | `TerminologyIndex`: loads TSV at startup, in-memory case-insensitive substring search (legacy fallback) |
-| `enhanced_terminology.py` | `EnhancedTerminologyIndex`: Wrapper that uses SNOMED CT RF2 when available, falls back to TSV. Converts SNOMED results to `TerminologyConcept` format. |
-| `dependencies.py` | Module-level singletons (`_store`, `_terminology`) initialized in the FastAPI lifespan. Tries loading SNOMED from `data/terminology/SnomedCT/`, falls back to TSV if `TEXTRACTOR_TERMINOLOGY_PATH` is set. |
+| `enhanced_terminology.py` | `EnhancedTerminologyIndex`: SNOMED CT terminology search using SQLite FTS5. Converts SNOMED results to `TerminologyConcept` format. |
+| `dependencies.py` | Module-level singletons (`_store`, `_terminology`) initialized in the FastAPI lifespan. Loads SNOMED from `data/terminology/SnomedCT/` if available. |
 | `routers/documents.py` | `GET /api/documents`, `POST /api/documents/upload`, `GET /api/documents/{id}`, `PATCH /api/documents/{id}/metadata`, `DELETE /api/documents/{id}` |
 | `routers/annotations.py` | `GET/PUT /api/documents/{id}/annotations` — PUT validates referential integrity (span/step IDs must exist) |
-| `routers/terminology.py` | `GET /api/terminology/search?q=`, `GET /api/terminology/info`, `POST /api/terminology/upload`. Now uses `EnhancedTerminologyIndex` which provides SNOMED search. |
-| `main.py` | App factory: wires routers, CORS, lifespan, optional `StaticFiles` mount. Initializes terminology with SNOMED path. |
+| `routers/terminology.py` | `GET /api/terminology/search?q=`, `GET /api/terminology/info`. Provides SNOMED CT full-text search. |
+| `main.py` | App factory: wires routers, CORS, lifespan, optional `StaticFiles` mount. Initializes SNOMED terminology on startup. |
 
-### Enhanced Terminology (`src/textractor/terminology/`)
+### SNOMED CT Terminology (`src/textractor/terminology/`)
 
-**SNOMED CT integration is now active** - place SNOMED RF2 files in `data/terminology/SnomedCT/` and they will be automatically loaded at startup.
+**SNOMED CT integration** - place SNOMED RF2 files in `data/terminology/SnomedCT/` and they will be automatically loaded at startup.
 
 | File | Role |
 |---|---|
-| `snomed_sqlite.py` | `SNOMEDSearchSQLite`: **Preferred**. Uses SQLite FTS5 with trigram tokenization for persistent, memory-efficient full-text search. Database stored at `data/terminology/snomed.db`. Automatically built from RF2 files on first load. |
-| `snomed.py` | `SNOMEDSearch`: **Fallback**. In-memory search using inverted word index + rapidfuzz. Loads all 2.6M+ descriptions into RAM. Used if SQLite build fails. |
+| `snomed.py` | `SNOMEDSearch`: Uses SQLite FTS5 with trigram tokenization for persistent, memory-efficient full-text search. Database stored at `data/terminology/snomed.db`. Automatically built from RF2 files on first load. |
 
-**Terminology loading priority:**
-1. **SQLite FTS5** (preferred): If `data/terminology/SnomedCT/` exists, uses or builds `data/terminology/snomed.db` with persistent FTS5 index
-2. **In-memory SNOMED**: Falls back to loading all descriptions into memory if SQLite unavailable
-3. **TSV fallback**: If SNOMED not found and `TEXTRACTOR_TERMINOLOGY_PATH` is set, loads simple TSV file
-
-**SQLite benefits:**
+**Features:**
 - **Persistent storage**: Database built once, instant startup on subsequent runs
-- **Low memory footprint**: ~50MB RAM vs ~500MB for in-memory
+- **Low memory footprint**: ~50MB RAM for 2.6M+ SNOMED descriptions
 - **Fast full-text search**: FTS5 trigram tokenization enables substring matching
-- **Custom ranking**: Same multi-factor scoring as in-memory (exact match, prefix, word boundary, position)
+- **Custom ranking**: Multi-factor scoring (exact match, prefix, word boundary, position)
+- **Deduplication**: Returns one result per concept ID (highest scoring)
 
 ### Frontend (`frontend/src/`)
 
@@ -140,17 +129,15 @@ Annotation output (`{doc_id}.ann.json`):
 }
 ```
 
-Terminology TSV (tab-separated, header row required):
-```
-code	display	system
-57054005	Acute myocardial infarction	SNOMED-CT
-```
-
 ### Environment variables
 
 | Variable | Default | Description |
 |---|---|---|
 | `TEXTRACTOR_DOC_ROOT` | `./data/documents` | Directory scanned recursively for `*.json` document files |
-| `TEXTRACTOR_TERMINOLOGY_PATH` | (none) | TSV file loaded as fallback if SNOMED CT not available. Only used if `data/terminology/SnomedCT/` does not exist. |
+
+**SNOMED CT Setup:**
+- Place SNOMED CT RF2 files in `data/terminology/SnomedCT/`
+- SQLite database will be automatically built at `data/terminology/snomed.db` on first startup
+- Subsequent startups will reuse the existing database
 
 - When resolving github issues, always create a branch, then a PR
