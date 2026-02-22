@@ -1349,3 +1349,35 @@ input { font-family: inherit; font-size: 13px; }
   flex-shrink: 0;
   vertical-align: middle;
 }
+
+/* Pre-annotate button */
+.preannotate-btn {
+  padding: 6px 12px;
+  border: 1px solid #9333ea;
+  background: #9333ea;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-right: 8px;
+  transition: background 0.2s;
+}
+
+.preannotate-btn:hover:not(:disabled) {
+  background: #7e22ce;
+}
+
+.preannotate-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Loading indicator in panel */
+.preannotate-loading {
+  padding: 12px;
+  background: #ede9fe;
+  border-left: 4px solid #9333ea;
+  color: #6b21a8;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
