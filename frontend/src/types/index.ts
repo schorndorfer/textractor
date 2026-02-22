@@ -30,6 +30,7 @@ export interface AnnotationFile {
   spans: Span[];
   reasoning_steps: ReasoningStep[];
   document_annotations: DocumentAnnotation[];
+  completed?: boolean;
 }
 
 export interface Document {
@@ -42,6 +43,7 @@ export interface DocumentSummary {
   id: string;
   metadata: Record<string, unknown>;
   is_annotated: boolean;
+  is_completed: boolean;
   text_preview: string;
 }
 

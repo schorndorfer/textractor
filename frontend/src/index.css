@@ -428,6 +428,10 @@ input { font-family: inherit; font-size: 13px; }
   font-size: 10px;
 }
 
+.completed-badge {
+  background: var(--primary);
+}
+
 .doc-category {
   margin-top: 2px;
   font-size: 11px;
@@ -728,6 +732,19 @@ input { font-family: inherit; font-size: 13px; }
   flex-shrink: 0;
 }
 .panel-header h2 { font-size: 14px; font-weight: 600; flex: 1; }
+
+.completed-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.completed-checkbox input[type="checkbox"] {
+  cursor: pointer;
+}
 
 .save-btn {
   background: var(--border);
