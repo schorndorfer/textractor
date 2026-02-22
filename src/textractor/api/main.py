@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .dependencies import init_store, init_terminology
-from .routers import annotations, documents
+from .routers import annotations, documents, preannotate
 from .routers import terminology as terminology_router
 
 
@@ -45,6 +45,7 @@ def create_app() -> FastAPI:
 
     app.include_router(documents.router)
     app.include_router(annotations.router)
+    app.include_router(preannotate.router)
     app.include_router(terminology_router.router)
 
     # Serve React build in production
