@@ -219,8 +219,16 @@ class SNOMEDSearchSQLite:
             # Sort by custom score (descending)
             scored_results.sort(key=lambda x: x["score"], reverse=True)
 
-            # Return top results
-            return scored_results[:limit]
+            # Deduplicate by concept_id, keeping highest scoring match for each
+            seen_concepts = set()
+            unique_results = []
+            for result in scored_results:
+                if result["concept_id"] not in seen_concepts:
+                    seen_concepts.add(result["concept_id"])
+                    unique_results.append(result)
+
+            # Return top unique results
+            return unique_results[:limit]
 
     def close(self):
         """Close database connection."""
