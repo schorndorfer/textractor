@@ -254,32 +254,6 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
     }
   };
 
-  const handleMoveDocument = async (docId: string, toProject: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const doc = documents.find((d) => d.id === docId);
-    if (!doc) return;
-
-    const updatedMetadata = { ...doc.metadata };
-    if (toProject === 'Uncategorized') {
-      delete updatedMetadata.project;
-    } else {
-      updatedMetadata.project = toProject;
-      // Remove from empty projects once a document is added
-      setEmptyProjects((prev) => {
-        const next = new Set(prev);
-        next.delete(toProject);
-        return next;
-      });
-    }
-
-    try {
-      await api.updateDocumentMetadata(docId, updatedMetadata);
-      onRefresh();
-    } catch (err) {
-      setUploadError(`Failed to move document: ${err}`);
-    }
-  };
-
   const handleCreateProject = (e?: React.FormEvent) => {
     e?.preventDefault();
     const projectName = createProjectName.trim();
@@ -608,24 +582,6 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
                     {doc.metadata.category != null && (
                       <div className="doc-category">{String(doc.metadata.category)}</div>
                     )}
-                    <div className="doc-project-container">
-                      <span className="doc-project-label">Project:</span>
-                      <select
-                        className="doc-project-select"
-                        value={String(doc.metadata.project || 'Uncategorized')}
-                        onChange={(e) => {
-                          const mouseEvent = e.nativeEvent as unknown as React.MouseEvent;
-                          handleMoveDocument(doc.id, e.target.value, mouseEvent);
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {Array.from(projectGroups.keys()).map((p) => (
-                          <option key={p} value={p}>
-                            {p}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
                   </li>
                 ))}
               </ul>
