@@ -107,6 +107,12 @@ export function App() {
     }
     setAnnotations(updated);
     setIsDirty(true);
+
+    // Clear pre-annotated flag on manual edit
+    // This allows auto-save to resume
+    if (isPreAnnotated) {
+      setIsPreAnnotated(false);
+    }
   };
 
   // Clear errors when document lock status changes
