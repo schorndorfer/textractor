@@ -59,18 +59,32 @@ export function DocumentAnnotationList({
 
   const commitEdit = (annId: string) => {
     if (!draftConcept) return;
+
     onChange(
-      annotations.map((a) =>
-        a.id === annId
-          ? {
-              ...a,
-              concept: draftConcept,
-              evidence_span_ids: draftSpanIds,
-              reasoning_step_ids: draftStepIds,
-              note: draftNote,
-            }
-          : a
-      )
+      annotations.map((a) => {
+        if (a.id !== annId) return a;
+
+        const conceptChanged =
+          a.concept.code !== draftConcept.code ||
+          a.concept.display !== draftConcept.display;
+
+        const evidenceChanged =
+          JSON.stringify([...a.evidence_span_ids].sort()) !== JSON.stringify([...draftSpanIds].sort());
+
+        const stepsChanged =
+          JSON.stringify([...a.reasoning_step_ids].sort()) !== JSON.stringify([...draftStepIds].sort());
+
+        const substantiveEdit = conceptChanged || evidenceChanged || stepsChanged;
+
+        return {
+          ...a,
+          concept: draftConcept,
+          evidence_span_ids: draftSpanIds,
+          reasoning_step_ids: draftStepIds,
+          note: draftNote,
+          source: substantiveEdit ? 'human' : a.source,
+        };
+      })
     );
     setEditingId(null);
   };
