@@ -1,9 +1,12 @@
 """SQLite-based SNOMED CT search with FTS5 full-text search."""
-import sqlite3
 import csv
+import logging
+import sqlite3
 import threading
 from pathlib import Path
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 class SNOMEDSearchSQLite:
@@ -115,7 +118,7 @@ class SNOMEDSearchSQLite:
                     )
 
         conn.commit()
-        print(f"Indexed {count} active SNOMED descriptions in SQLite")
+        logger.info("Indexed %d active SNOMED descriptions in SQLite", count)
         return count
 
     def is_indexed(self) -> bool:

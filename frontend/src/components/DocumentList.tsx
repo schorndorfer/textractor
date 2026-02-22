@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { api } from '../api/client';
 import type { DocumentSummary } from '../types';
+import { toggleInSet } from '../utils/helpers';
+import { useOutsideClick } from '../hooks/useOutsideClick';
 
 interface AddFilesDialogProps {
   projectName: string;
@@ -18,15 +20,7 @@ function AddFilesDialog({ projectName, allDocuments, currentProjectDocs, onAdd, 
   const availableDocs = allDocuments.filter((d) => !currentDocIds.has(d.id));
 
   const toggleDoc = (docId: string) => {
-    setSelectedDocs((prev) => {
-      const next = new Set(prev);
-      if (next.has(docId)) {
-        next.delete(docId);
-      } else {
-        next.add(docId);
-      }
-      return next;
-    });
+    setSelectedDocs((prev) => toggleInSet(docId, prev));
   };
 
   const handleAdd = () => {
@@ -137,15 +131,7 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
   });
 
   const toggleProject = (project: string) => {
-    setExpandedProjects((prev) => {
-      const next = new Set(prev);
-      if (next.has(project)) {
-        next.delete(project);
-      } else {
-        next.add(project);
-      }
-      return next;
-    });
+    setExpandedProjects((prev) => toggleInSet(project, prev));
   };
 
   const handleRenameProject = async (oldName: string, newName: string) => {
@@ -318,24 +304,23 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
   };
 
   // Close menus when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (uploadMenuRef.current && !uploadMenuRef.current.contains(event.target as Node)) {
-        setShowUploadMenu(false);
-      }
-      if (projectMenuRef.current && !projectMenuRef.current.contains(event.target as Node)) {
-        setShowProjectMenu(null);
-      }
-      if (addFilesDialogRef.current && !addFilesDialogRef.current.contains(event.target as Node)) {
-        setShowAddFilesDialog(null);
-      }
-    };
+  useOutsideClick(
+    [uploadMenuRef],
+    () => setShowUploadMenu(false),
+    showUploadMenu
+  );
 
-    if (showUploadMenu || showProjectMenu || showAddFilesDialog) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [showUploadMenu, showProjectMenu, showAddFilesDialog]);
+  useOutsideClick(
+    [projectMenuRef],
+    () => setShowProjectMenu(null),
+    showProjectMenu !== null
+  );
+
+  useOutsideClick(
+    [addFilesDialogRef],
+    () => setShowAddFilesDialog(null),
+    showAddFilesDialog !== null
+  );
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files;

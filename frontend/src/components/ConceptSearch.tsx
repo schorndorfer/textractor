@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import type { TerminologyConcept } from '../types';
+import { SEARCH, UI } from '../constants';
+import { useDebounce } from '../hooks/useDebounce';
 
 interface Props {
   value: TerminologyConcept | null;
@@ -13,35 +15,33 @@ export function ConceptSearch({ value, onChange, placeholder = 'Search concepts.
   const [results, setResults] = useState<TerminologyConcept[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setQuery(value?.display ?? '');
   }, [value]);
 
-  const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const q = e.target.value;
-    setQuery(q);
-    onChange(null);
-
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-
+  const performSearch = useDebounce(async (q: string) => {
     if (!q.trim()) {
       setResults([]);
       setIsOpen(false);
       return;
     }
 
-    debounceRef.current = setTimeout(async () => {
-      setIsLoading(true);
-      try {
-        const hits = await api.searchTerminology(q, 20);
-        setResults(hits);
-        setIsOpen(hits.length > 0);
-      } finally {
-        setIsLoading(false);
-      }
-    }, 250);
+    setIsLoading(true);
+    try {
+      const hits = await api.searchTerminology(q, SEARCH.DEFAULT_LIMIT);
+      setResults(hits);
+      setIsOpen(hits.length > 0);
+    } finally {
+      setIsLoading(false);
+    }
+  }, SEARCH.DEBOUNCE_MS);
+
+  const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const q = e.target.value;
+    setQuery(q);
+    onChange(null);
+    performSearch(q);
   };
 
   const handleSelect = (concept: TerminologyConcept) => {
@@ -53,7 +53,7 @@ export function ConceptSearch({ value, onChange, placeholder = 'Search concepts.
 
   const handleBlur = () => {
     // Delay to allow mouseDown on dropdown item to fire first
-    setTimeout(() => setIsOpen(false), 150);
+    setTimeout(() => setIsOpen(false), UI.BLUR_DELAY_MS);
   };
 
   return (

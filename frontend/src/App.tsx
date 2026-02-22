@@ -6,30 +6,12 @@ import { DocumentList } from './components/DocumentList';
 import { DocumentViewer } from './components/DocumentViewer';
 import { ResizeHandle } from './components/ResizeHandle';
 import type { AnnotationFile, Document, DocumentSummary, Span } from './types';
+import { SIDEBAR, FONT_SIZE, AUTO_SAVE } from './constants';
+import { deepClone } from './utils/helpers';
+import { computeColorMappings } from './utils/colorMapping';
+import type { ColorMap } from './utils/colorMapping';
 
-// Color palette for document annotations (hue, saturation, lightness)
-const COLOR_PALETTE = [
-  { bg: '#e3f2fd', border: '#2196f3' }, // blue
-  { bg: '#f3e5f5', border: '#9c27b0' }, // purple
-  { bg: '#e8f5e9', border: '#4caf50' }, // green
-  { bg: '#fff3e0', border: '#ff9800' }, // orange
-  { bg: '#fce4ec', border: '#e91e63' }, // pink
-  { bg: '#e0f7fa', border: '#00bcd4' }, // cyan
-  { bg: '#fff9c4', border: '#fdd835' }, // yellow
-  { bg: '#f1f8e9', border: '#8bc34a' }, // lime
-  { bg: '#ede7f6', border: '#673ab7' }, // deep purple
-  { bg: '#ffebee', border: '#f44336' }, // red
-  { bg: '#e0f2f1', border: '#009688' }, // teal
-  { bg: '#fff8e1', border: '#ffc107' }, // amber
-];
-
-export type SpanColorMap = Map<string, { bg: string; border: string }>;
-
-const MIN_SIDEBAR_WIDTH = 200;
-const MAX_SIDEBAR_WIDTH = 600;
-const DEFAULT_LEFT_WIDTH = 260;
-const DEFAULT_RIGHT_WIDTH = 380;
-const DEFAULT_FONT_SIZE = 14;
+export type SpanColorMap = ColorMap;
 
 export function App() {
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
@@ -49,15 +31,15 @@ export function App() {
   const isSavingRef = useRef(false);
 
   // Sidebar width and collapse state
-  const [leftSidebarWidth, setLeftSidebarWidth] = useState(DEFAULT_LEFT_WIDTH);
-  const [rightSidebarWidth, setRightSidebarWidth] = useState(DEFAULT_RIGHT_WIDTH);
+  const [leftSidebarWidth, setLeftSidebarWidth] = useState(SIDEBAR.DEFAULT_LEFT_WIDTH);
+  const [rightSidebarWidth, setRightSidebarWidth] = useState(SIDEBAR.DEFAULT_RIGHT_WIDTH);
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
   const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false);
 
   // Font size state (persisted to localStorage)
   const [fontSize, setFontSize] = useState<number>(() => {
-    const saved = localStorage.getItem('textractor-font-size');
-    return saved ? parseInt(saved, 10) : DEFAULT_FONT_SIZE;
+    const saved = localStorage.getItem(FONT_SIZE.STORAGE_KEY);
+    return saved ? parseInt(saved, 10) : FONT_SIZE.DEFAULT;
   });
 
   const refreshDocuments = () => {
@@ -65,53 +47,10 @@ export function App() {
   };
 
   // Compute color mappings for document annotations, spans, and reasoning steps
-  const { spanColorMap, docAnnColorMap, stepColorMap } = useMemo<{
-    spanColorMap: SpanColorMap;
-    docAnnColorMap: SpanColorMap;
-    stepColorMap: SpanColorMap;
-  }>(() => {
-    const spanMap = new Map<string, { bg: string; border: string }>();
-    const docAnnMap = new Map<string, { bg: string; border: string }>();
-    const stepMap = new Map<string, { bg: string; border: string }>();
-    if (!annotations) return { spanColorMap: spanMap, docAnnColorMap: docAnnMap, stepColorMap: stepMap };
-
-    // Assign colors to document annotations
-    annotations.document_annotations.forEach((ann, idx) => {
-      docAnnMap.set(ann.id, COLOR_PALETTE[idx % COLOR_PALETTE.length]);
-    });
-
-    // Map spans and reasoning steps to colors via document annotations
-    annotations.document_annotations.forEach((ann) => {
-      const color = docAnnMap.get(ann.id);
-      if (!color) return;
-
-      // Direct evidence spans
-      ann.evidence_span_ids.forEach((spanId) => {
-        if (!spanMap.has(spanId)) {
-          spanMap.set(spanId, color);
-        }
-      });
-
-      // Reasoning steps
-      ann.reasoning_step_ids.forEach((stepId) => {
-        if (!stepMap.has(stepId)) {
-          stepMap.set(stepId, color);
-        }
-
-        // Indirect spans via reasoning steps
-        const step = annotations.reasoning_steps.find((s) => s.id === stepId);
-        if (step) {
-          step.span_ids.forEach((spanId) => {
-            if (!spanMap.has(spanId)) {
-              spanMap.set(spanId, color);
-            }
-          });
-        }
-      });
-    });
-
-    return { spanColorMap: spanMap, docAnnColorMap: docAnnMap, stepColorMap: stepMap };
-  }, [annotations]);
+  const { spanColorMap, docAnnColorMap, stepColorMap } = useMemo(
+    () => computeColorMappings(annotations),
+    [annotations]
+  );
 
   useEffect(() => {
     refreshDocuments();
@@ -137,7 +76,7 @@ export function App() {
         ]);
         setCurrentDoc(doc);
         setAnnotations(ann);
-        setOriginalAnnotations(JSON.parse(JSON.stringify(ann)));
+        setOriginalAnnotations(deepClone(ann));
         setIsDirty(false);
         setSaveError(null);
       } catch (error) {
@@ -170,10 +109,10 @@ export function App() {
       clearTimeout(autoSaveTimeoutRef.current);
     }
 
-    // Set new timeout for auto-save (3 seconds after last change)
+    // Set new timeout for auto-save
     autoSaveTimeoutRef.current = setTimeout(() => {
       saveAnnotations();
-    }, 3000);
+    }, AUTO_SAVE.DEBOUNCE_MS);
 
     return () => {
       if (autoSaveTimeoutRef.current) {
@@ -204,7 +143,7 @@ export function App() {
     try {
       await api.saveAnnotations(selectedDocId, annotations);
       setIsDirty(false);
-      setOriginalAnnotations(JSON.parse(JSON.stringify(annotations)));
+      setOriginalAnnotations(deepClone(annotations));
       refreshDocuments();
     } catch (err) {
       setSaveError(String(err));
@@ -215,7 +154,7 @@ export function App() {
 
   const handleRevert = () => {
     if (originalAnnotations) {
-      setAnnotations(JSON.parse(JSON.stringify(originalAnnotations)));
+      setAnnotations(deepClone(originalAnnotations));
       setIsDirty(false);
       setSaveError(null);
     }
@@ -266,14 +205,14 @@ export function App() {
   const handleLeftResize = useCallback((delta: number) => {
     setLeftSidebarWidth((prev) => {
       const newWidth = prev + delta;
-      return Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, newWidth));
+      return Math.max(SIDEBAR.MIN_WIDTH, Math.min(SIDEBAR.MAX_WIDTH, newWidth));
     });
   }, []);
 
   const handleRightResize = useCallback((delta: number) => {
     setRightSidebarWidth((prev) => {
       const newWidth = prev + delta;
-      return Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, newWidth));
+      return Math.max(SIDEBAR.MIN_WIDTH, Math.min(SIDEBAR.MAX_WIDTH, newWidth));
     });
   }, []);
 
@@ -289,8 +228,8 @@ export function App() {
   // Font size handlers
   const handleFontSizeChange = useCallback((delta: number) => {
     setFontSize((prev) => {
-      const newSize = Math.max(10, Math.min(24, prev + delta));
-      localStorage.setItem('textractor-font-size', newSize.toString());
+      const newSize = Math.max(FONT_SIZE.MIN, Math.min(FONT_SIZE.MAX, prev + delta));
+      localStorage.setItem(FONT_SIZE.STORAGE_KEY, newSize.toString());
       return newSize;
     });
   }, []);

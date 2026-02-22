@@ -3,12 +3,24 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Protocol
 
 from .models import TerminologyConcept, TerminologyInfo
 from .terminology import TerminologyIndex
 
 logger = logging.getLogger(__name__)
+
+
+class SNOMEDSearchProtocol(Protocol):
+    """Protocol defining the interface for SNOMED search implementations."""
+
+    def search(self, query: str, limit: int) -> list[dict]:
+        """Search for SNOMED concepts."""
+        ...
+
+    def is_indexed(self) -> bool:
+        """Check if the search index is ready."""
+        ...
 
 
 class EnhancedTerminologyIndex:
@@ -20,9 +32,10 @@ class EnhancedTerminologyIndex:
     """
 
     def __init__(self, db_path: Optional[Path] = None) -> None:
-        self._snomed_search: Optional[object] = None  # SNOMEDSearch or SNOMEDSearchSQLite
+        self._snomed_search: Optional[SNOMEDSearchProtocol] = None
         self._tsv_index = TerminologyIndex()
         self._snomed_loaded = False
+        self._snomed_count: Optional[int] = None
         self._snomed_path: Optional[str] = None
         self._db_path = db_path
         self._using_sqlite = False
@@ -32,29 +45,13 @@ class EnhancedTerminologyIndex:
         return self._snomed_loaded or self._tsv_index.is_loaded
 
     def info(self) -> TerminologyInfo:
-        if self._snomed_loaded and self._snomed_search:
-            # Get description count from SNOMED
-            if self._using_sqlite:
-                # For SQLite, query the count
-                try:
-                    conn = self._snomed_search._get_connection()
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT COUNT(*) FROM snomed_fts")
-                    desc_count = cursor.fetchone()[0]
-                    return TerminologyInfo(
-                        total_concepts=desc_count,
-                        file_name=f"SNOMED CT SQLite ({desc_count} descriptions)",
-                        loaded=True,
-                    )
-                except Exception:
-                    pass
-            else:
-                desc_count = len(getattr(self._snomed_search, "descriptions", []))
-                return TerminologyInfo(
-                    total_concepts=desc_count,
-                    file_name=f"SNOMED CT RF2 ({desc_count} descriptions)",
-                    loaded=True,
-                )
+        if self._snomed_loaded and self._snomed_count is not None:
+            source_type = "SNOMED CT SQLite" if self._using_sqlite else "SNOMED CT RF2"
+            return TerminologyInfo(
+                total_concepts=self._snomed_count,
+                file_name=f"{source_type} ({self._snomed_count} descriptions)",
+                loaded=True,
+            )
         return self._tsv_index.info()
 
     def load_snomed(self, rf2_dir: Path) -> int:
@@ -66,41 +63,44 @@ class EnhancedTerminologyIndex:
         2. SQLite database (build from RF2 if path provided)
         3. In-memory search (from RF2)
         """
-        # Try SQLite first if path provided
-        if self._db_path:
-            try:
-                from textractor.terminology.snomed_sqlite import SNOMEDSearchSQLite
+        desc_count = self._try_load_sqlite(rf2_dir) or self._try_load_in_memory(rf2_dir)
+        self._snomed_count = desc_count if desc_count > 0 else None
+        return desc_count
 
-                self._snomed_search = SNOMEDSearchSQLite(self._db_path)
+    def _try_load_sqlite(self, rf2_dir: Path) -> int:
+        """Try to load SNOMED using SQLite. Returns 0 on failure."""
+        if not self._db_path:
+            return 0
 
-                # Check if database is already indexed
-                if self._snomed_search.is_indexed():
-                    logger.info("Using existing SNOMED SQLite database at %s", self._db_path)
-                    self._snomed_loaded = True
-                    self._snomed_path = str(rf2_dir)
-                    self._using_sqlite = True
+        try:
+            from textractor.terminology.snomed_sqlite import SNOMEDSearchSQLite
 
-                    # Get count for return value
-                    conn = self._snomed_search._get_connection()
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT COUNT(*) FROM snomed_fts")
-                    desc_count = cursor.fetchone()[0]
-                    return desc_count
-                else:
-                    # Build index from RF2 files
-                    logger.info("Building SNOMED SQLite index from %s", rf2_dir)
-                    desc_count = self._snomed_search.build_index(rf2_dir)
-                    self._snomed_loaded = True
-                    self._snomed_path = str(rf2_dir)
-                    self._using_sqlite = True
-                    logger.info("Built SNOMED SQLite index with %d descriptions", desc_count)
-                    return desc_count
+            self._snomed_search = SNOMEDSearchSQLite(self._db_path)
 
-            except Exception as exc:
-                logger.warning("Failed to use SQLite, falling back to in-memory: %s", exc)
-                # Fall through to in-memory
+            # Check if database is already indexed
+            if self._snomed_search.is_indexed():
+                logger.info("Using existing SNOMED SQLite database at %s", self._db_path)
+                conn = self._snomed_search._get_connection()
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM snomed_fts")
+                desc_count = cursor.fetchone()[0]
+            else:
+                # Build index from RF2 files
+                logger.info("Building SNOMED SQLite index from %s", rf2_dir)
+                desc_count = self._snomed_search.build_index(rf2_dir)
+                logger.info("Built SNOMED SQLite index with %d descriptions", desc_count)
 
-        # Fall back to in-memory SNOMED search
+            self._snomed_loaded = True
+            self._snomed_path = str(rf2_dir)
+            self._using_sqlite = True
+            return desc_count
+
+        except Exception as exc:
+            logger.warning("Failed to use SQLite, falling back to in-memory: %s", exc)
+            return 0
+
+    def _try_load_in_memory(self, rf2_dir: Path) -> int:
+        """Try to load SNOMED using in-memory search. Returns 0 on failure."""
         try:
             from textractor.terminology.snomed import SNOMEDSearch
 

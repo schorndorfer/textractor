@@ -2,10 +2,7 @@ import { useState } from 'react';
 import type { DocumentAnnotation, ReasoningStep, Span, TerminologyConcept } from '../types';
 import type { SpanColorMap } from '../App';
 import { ConceptSearch } from './ConceptSearch';
-
-function randomId(prefix: string) {
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
-}
+import { randomId, toggleInArray } from '../utils/helpers';
 
 interface Props {
   annotations: DocumentAnnotation[];
@@ -81,7 +78,7 @@ export function DocumentAnnotationList({
   };
 
   const toggleId = (id: string, current: string[], setter: (ids: string[]) => void) => {
-    setter(current.includes(id) ? current.filter((x) => x !== id) : [...current, id]);
+    setter(toggleInArray(id, current));
   };
 
   return (
