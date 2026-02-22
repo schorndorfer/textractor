@@ -518,21 +518,24 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
                     {doc.metadata.category != null && (
                       <div className="doc-category">{String(doc.metadata.category)}</div>
                     )}
-                    <select
-                      className="doc-project-select"
-                      value={String(doc.metadata.project || 'Uncategorized')}
-                      onChange={(e) => {
-                        const mouseEvent = e.nativeEvent as unknown as React.MouseEvent;
-                        handleMoveDocument(doc.id, e.target.value, mouseEvent);
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {Array.from(projectGroups.keys()).map((p) => (
-                        <option key={p} value={p}>
-                          {p}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="doc-project-container">
+                      <span className="doc-project-label">Project:</span>
+                      <select
+                        className="doc-project-select"
+                        value={String(doc.metadata.project || 'Uncategorized')}
+                        onChange={(e) => {
+                          const mouseEvent = e.nativeEvent as unknown as React.MouseEvent;
+                          handleMoveDocument(doc.id, e.target.value, mouseEvent);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {Array.from(projectGroups.keys()).map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </li>
                 ))}
               </ul>
