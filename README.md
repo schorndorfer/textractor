@@ -74,6 +74,8 @@ TEXTRACTOR_DOC_ROOT=./data/documents \
 
 You can also upload or replace the terminology at runtime via the UI or the API (`POST /api/terminology/upload`).
 
+For more sophisticated terminology sources (e.g., full SNOMED CT releases), place the source files in `data/terminology/` for use with the enhanced terminology search module.
+
 ---
 
 ## Annotation Workflow
@@ -87,11 +89,19 @@ Text spans  →  Reasoning steps  →  Document annotations
 
 **1. Create spans** — Select text in the document viewer. Each selection becomes a named span with character offsets.
 
-**2. Create reasoning steps** — Search for an intermediate concept (e.g. "ST elevation MI pattern"), then check which spans support it. Reasoning steps capture the inferential path from evidence to conclusion.
+**2. Create reasoning steps** — Search for an intermediate concept (e.g. "ST elevation MI pattern"), then check which spans support it. Reasoning steps capture the inferential path from evidence to conclusion. Optionally add free-form notes to document your reasoning.
 
-**3. Create document annotations** — Search for the final code (e.g. "Acute myocardial infarction"), link it to evidence spans and the reasoning steps that led to it.
+**3. Create document annotations** — Search for the final code (e.g. "Acute myocardial infarction"), link it to evidence spans and the reasoning steps that led to it. Click on a document annotation to view its interactive evidence graph.
 
 Hit **Save** to write the annotation file to disk.
+
+### UI Features
+
+- **Project Organization** — Group documents into collapsible projects in the left sidebar
+- **Interactive Graph** — Visualize document annotations with their linked reasoning steps and evidence spans
+- **Annotation Highlighting** — Click document annotations to highlight and filter related evidence
+- **Resizable Panels** — Drag panel borders to adjust workspace layout
+- **Font Size Control** — Use +/- buttons to adjust document text size
 
 ---
 
@@ -133,7 +143,8 @@ Each document gets a companion `.ann.json` file saved alongside it:
       "span_ids": [
         "span_d9e4f820",
         "span_c1a2e391"
-      ]
+      ],
+      "note": "ECG findings combined with elevated troponin indicate acute STEMI"
     }
   ],
   "document_annotations": [
@@ -168,6 +179,8 @@ The backend exposes a REST API documented interactively at `http://localhost:800
 | `GET` | `/api/documents` | List all documents with annotation status |
 | `POST` | `/api/documents/upload` | Upload a document JSON file |
 | `GET` | `/api/documents/{id}` | Get document text and metadata |
+| `PATCH` | `/api/documents/{id}/metadata` | Update document metadata (e.g., project) |
+| `DELETE` | `/api/documents/{id}` | Delete a document and its annotations |
 | `GET` | `/api/documents/{id}/annotations` | Get current annotations (empty structure if none) |
 | `PUT` | `/api/documents/{id}/annotations` | Save annotations (validates all ID references) |
 | `GET` | `/api/terminology/search?q=&limit=` | Search concepts by substring |
@@ -187,6 +200,31 @@ done
 ```bash
 # All .ann.json files in the document root are the annotation output
 find data/documents -name "*.ann.json" | sort
+```
+
+---
+
+## Project Structure
+
+```
+textractor/
+├── src/textractor/
+│   ├── api/              # FastAPI backend
+│   │   ├── models.py     # Pydantic data models
+│   │   ├── storage.py    # Document store
+│   │   ├── terminology.py # Basic terminology index
+│   │   ├── routers/      # API endpoints
+│   │   └── main.py       # App factory
+│   └── terminology/      # Enhanced terminology search (upcoming)
+├── frontend/             # React + TypeScript UI
+│   ├── src/
+│   │   ├── components/   # UI components
+│   │   ├── api/          # API client
+│   │   └── types/        # TypeScript interfaces
+│   └── dist/             # Production build output
+└── data/
+    ├── documents/        # Document storage (.json + .ann.json)
+    └── terminology/      # Terminology source files
 ```
 
 ---
