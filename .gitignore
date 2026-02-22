@@ -12,3 +12,6 @@ wheels/
 # Terminology source files (keep directory structure but ignore large files)
 data/terminology/*
 !data/terminology/README.md
+
+# Git worktrees
+.worktrees/
