@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -21,6 +21,7 @@ class Span(BaseModel):
     start: int
     end: int
     text: str
+    source: Literal["human", "model"] = "human"
 
 
 class ReasoningStep(BaseModel):
@@ -28,6 +29,7 @@ class ReasoningStep(BaseModel):
     concept: Concept
     span_ids: list[str] = Field(default_factory=list)
     note: str = ""
+    source: Literal["human", "model"] = "human"
 
 
 class DocumentAnnotation(BaseModel):
@@ -36,6 +38,7 @@ class DocumentAnnotation(BaseModel):
     evidence_span_ids: list[str] = Field(default_factory=list)
     reasoning_step_ids: list[str] = Field(default_factory=list)
     note: str = ""
+    source: Literal["human", "model"] = "human"
 
 
 class AnnotationFile(BaseModel):
