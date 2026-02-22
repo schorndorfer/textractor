@@ -4,13 +4,13 @@ from pathlib import Path
 from textractor.api.enhanced_terminology import EnhancedTerminologyIndex
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def snomed_dir():
     """Path to SNOMED CT data directory."""
     return Path(__file__).parent.parent / "data" / "terminology" / "SnomedCT"
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def enhanced_index(snomed_dir):
     """Create enhanced terminology index."""
     index = EnhancedTerminologyIndex()
