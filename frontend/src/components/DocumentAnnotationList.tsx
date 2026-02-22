@@ -30,6 +30,7 @@ export function DocumentAnnotationList({
   const [draftConcept, setDraftConcept] = useState<TerminologyConcept | null>(null);
   const [draftSpanIds, setDraftSpanIds] = useState<string[]>([]);
   const [draftStepIds, setDraftStepIds] = useState<string[]>([]);
+  const [draftNote, setDraftNote] = useState<string>('');
 
   const addAnnotation = () => {
     const id = randomId('ann');
@@ -38,12 +39,14 @@ export function DocumentAnnotationList({
       concept: { code: '', display: '', system: 'SNOMED-CT' },
       evidence_span_ids: [],
       reasoning_step_ids: [],
+      note: '',
     };
     onChange([...annotations, newAnn]);
     setEditingId(id);
     setDraftConcept(null);
     setDraftSpanIds([]);
     setDraftStepIds([]);
+    setDraftNote('');
   };
 
   const commitEdit = (annId: string) => {
@@ -56,6 +59,7 @@ export function DocumentAnnotationList({
               concept: draftConcept,
               evidence_span_ids: draftSpanIds,
               reasoning_step_ids: draftStepIds,
+              note: draftNote,
             }
           : a
       )
@@ -97,6 +101,15 @@ export function DocumentAnnotationList({
                 onChange={setDraftConcept}
                 placeholder="Search for document-level concept..."
               />
+              <div className="form-field">
+                <label>Note (optional):</label>
+                <textarea
+                  value={draftNote}
+                  onChange={(e) => setDraftNote(e.target.value)}
+                  placeholder="Add free-form notes about this document annotation..."
+                  rows={3}
+                />
+              </div>
               {availableSpans.length > 0 && (
                 <div className="checkbox-group">
                   <label className="checkbox-group-label">Evidence spans:</label>
@@ -165,6 +178,7 @@ export function DocumentAnnotationList({
                 <span className="item-meta">
                   {ann.evidence_span_ids.length} span(s), {ann.reasoning_step_ids.length} step(s)
                 </span>
+                {ann.note && <div className="item-note">{ann.note}</div>}
               </div>
               <div className="item-actions" onClick={(e) => e.stopPropagation()}>
                 <button
@@ -173,6 +187,7 @@ export function DocumentAnnotationList({
                     setDraftConcept(ann.concept.code ? ann.concept : null);
                     setDraftSpanIds(ann.evidence_span_ids);
                     setDraftStepIds(ann.reasoning_step_ids);
+                    setDraftNote(ann.note || '');
                   }}
                   className="btn-small"
                 >

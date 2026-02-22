@@ -35,6 +35,7 @@ class DocumentAnnotation(BaseModel):
     concept: Concept
     evidence_span_ids: list[str] = Field(default_factory=list)
     reasoning_step_ids: list[str] = Field(default_factory=list)
+    note: str = ""
 
 
 class AnnotationFile(BaseModel):
