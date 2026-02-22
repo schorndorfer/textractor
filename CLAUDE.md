@@ -33,6 +33,18 @@ npm run dev        # Vite dev server on port 5173 (proxies /api → :8000)
 npm run build      # production build → frontend/dist/
 ```
 
+### Testing
+
+```bash
+uv sync --extra dev                    # install test dependencies (pytest)
+uv run pytest                          # run all tests
+uv run pytest tests/test_snomed_search.py  # run specific test file
+uv run pytest -v                       # verbose output
+uv run pytest -k "search"              # run tests matching pattern
+```
+
+**Note:** SNOMED tests require SNOMED CT RF2 files in `data/terminology/SnomedCT/`. Tests will skip if data is not present.
+
 ### Dev mode (both together)
 
 ```
