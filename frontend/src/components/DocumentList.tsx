@@ -19,6 +19,7 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [showUploadMenu, setShowUploadMenu] = useState(false);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set(['Uncategorized']));
+  const [emptyProjects, setEmptyProjects] = useState<Set<string>>(new Set());
   const [editingProject, setEditingProject] = useState<string | null>(null);
   const [newProjectName, setNewProjectName] = useState('');
   const [showProjectMenu, setShowProjectMenu] = useState<string | null>(null);
@@ -43,6 +44,13 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
     projectGroups.get(project)!.push(doc);
   });
 
+  // Add empty projects to the groups
+  emptyProjects.forEach((project) => {
+    if (!projectGroups.has(project)) {
+      projectGroups.set(project, []);
+    }
+  });
+
   const toggleProject = (project: string) => {
     setExpandedProjects((prev) => {
       const next = new Set(prev);
@@ -56,20 +64,57 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
   };
 
   const handleRenameProject = async (oldName: string, newName: string) => {
-    if (!newName.trim() || newName === oldName) {
+    const trimmedNewName = newName.trim();
+    if (!trimmedNewName || trimmedNewName === oldName) {
+      setEditingProject(null);
+      return;
+    }
+
+    if (trimmedNewName === 'Uncategorized') {
+      setUploadError('Cannot rename a project to "Uncategorized"');
+      setEditingProject(null);
+      return;
+    }
+
+    // Check if new name already exists
+    if (projectGroups.has(trimmedNewName) || emptyProjects.has(trimmedNewName)) {
+      setUploadError(`Project "${trimmedNewName}" already exists`);
       setEditingProject(null);
       return;
     }
 
     const docsInProject = projectGroups.get(oldName) || [];
+    const isEmptyProject = docsInProject.length === 0;
+
     try {
-      for (const doc of docsInProject) {
-        await api.updateDocumentMetadata(doc.id, { project: newName });
+      if (isEmptyProject) {
+        // Just update the empty projects set
+        setEmptyProjects((prev) => {
+          const next = new Set(prev);
+          next.delete(oldName);
+          next.add(trimmedNewName);
+          return next;
+        });
+        // Update expanded state
+        setExpandedProjects((prev) => {
+          const next = new Set(prev);
+          if (next.has(oldName)) {
+            next.delete(oldName);
+            next.add(trimmedNewName);
+          }
+          return next;
+        });
+      } else {
+        // Update all documents in the project
+        for (const doc of docsInProject) {
+          await api.updateDocumentMetadata(doc.id, { project: trimmedNewName });
+        }
+        onRefresh();
       }
       setEditingProject(null);
-      onRefresh();
     } catch (err) {
       setUploadError(`Failed to rename project: ${err}`);
+      setEditingProject(null);
     }
   };
 
@@ -79,17 +124,32 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
       return;
     }
 
-    if (!confirm(`Delete project "${projectName}"? Documents will be moved to Uncategorized.`)) {
+    const docsInProject = projectGroups.get(projectName) || [];
+    const isEmptyProject = docsInProject.length === 0;
+
+    const confirmMessage = isEmptyProject
+      ? `Delete empty project "${projectName}"?`
+      : `Delete project "${projectName}"? ${docsInProject.length} document(s) will be moved to Uncategorized.`;
+
+    if (!confirm(confirmMessage)) {
       return;
     }
 
-    const docsInProject = projectGroups.get(projectName) || [];
     try {
+      // Move documents to Uncategorized
       for (const doc of docsInProject) {
         const updatedMetadata = { ...doc.metadata };
         delete updatedMetadata.project;
         await api.updateDocumentMetadata(doc.id, updatedMetadata);
       }
+
+      // Remove from empty projects if it's there
+      setEmptyProjects((prev) => {
+        const next = new Set(prev);
+        next.delete(projectName);
+        return next;
+      });
+
       setShowProjectMenu(null);
       onRefresh();
     } catch (err) {
@@ -121,6 +181,12 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
       delete updatedMetadata.project;
     } else {
       updatedMetadata.project = toProject;
+      // Remove from empty projects once a document is added
+      setEmptyProjects((prev) => {
+        const next = new Set(prev);
+        next.delete(toProject);
+        return next;
+      });
     }
 
     try {
@@ -131,62 +197,32 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
     }
   };
 
-  const handleCreateProject = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!createProjectName.trim()) {
+  const handleCreateProject = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const projectName = createProjectName.trim();
+    if (!projectName) {
       setCreatingProject(false);
       return;
     }
 
-    // Trigger file input for the new project
-    const fileInput = document.getElementById('new-project-file-input') as HTMLInputElement;
-    if (fileInput) {
-      fileInput.click();
-    }
-  };
-
-  const handleNewProjectFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!createProjectName.trim()) return;
-
-    const fileList = e.target.files;
-    if (!fileList || fileList.length === 0) {
-      setCreatingProject(false);
+    if (projectName === 'Uncategorized') {
+      setUploadError('Cannot create a project named "Uncategorized"');
       setCreateProjectName('');
       return;
     }
 
-    const files = Array.from(fileList).filter((f) => f.name.endsWith('.json'));
-    if (files.length === 0) {
-      setUploadError('No valid .json files selected');
-      setCreatingProject(false);
+    // Check if project already exists
+    if (projectGroups.has(projectName) || emptyProjects.has(projectName)) {
+      setUploadError(`Project "${projectName}" already exists`);
       setCreateProjectName('');
       return;
     }
 
-    setUploading(true);
-    setUploadError(null);
-    const projectName = createProjectName;
-    try {
-      const results = await api.uploadDocuments(files);
-      // Assign all uploaded documents to the new project
-      for (const summary of results) {
-        await api.updateDocumentMetadata(summary.id, { ...summary.metadata, project: projectName });
-      }
-      const skipped = files.length - results.length;
-      if (skipped > 0) {
-        setUploadError(`Uploaded ${results.length} file(s). ${skipped} skipped (duplicates or errors).`);
-      }
-      // Expand the new project
-      setExpandedProjects((prev) => new Set(prev).add(projectName));
-      onRefresh();
-    } catch (err) {
-      setUploadError(String(err));
-    } finally {
-      setUploading(false);
-      setCreatingProject(false);
-      setCreateProjectName('');
-      e.target.value = '';
-    }
+    // Add to empty projects and expand it
+    setEmptyProjects((prev) => new Set(prev).add(projectName));
+    setExpandedProjects((prev) => new Set(prev).add(projectName));
+    setCreatingProject(false);
+    setCreateProjectName('');
   };
 
   const handleUploadToProject = async (e: React.ChangeEvent<HTMLInputElement>, project: string) => {
@@ -208,6 +244,12 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
         for (const summary of results) {
           await api.updateDocumentMetadata(summary.id, { ...summary.metadata, project });
         }
+        // Remove from empty projects once files are added
+        setEmptyProjects((prev) => {
+          const next = new Set(prev);
+          next.delete(project);
+          return next;
+        });
       }
       const skipped = files.length - results.length;
       if (skipped > 0) {
@@ -341,19 +383,19 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
               value={createProjectName}
               onChange={(e) => setCreateProjectName(e.target.value)}
               onBlur={() => {
-                if (!createProjectName.trim()) {
+                if (createProjectName.trim()) {
+                  handleCreateProject();
+                } else {
                   setCreatingProject(false);
                 }
               }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setCreatingProject(false);
+                  setCreateProjectName('');
+                }
+              }}
               autoFocus
-            />
-            <input
-              id="new-project-file-input"
-              type="file"
-              accept=".json"
-              onChange={handleNewProjectFileUpload}
-              multiple
-              hidden
             />
           </form>
         ) : (
