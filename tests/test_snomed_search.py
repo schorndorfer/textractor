@@ -4,13 +4,13 @@ from pathlib import Path
 from textractor.terminology.snomed import SNOMEDSearch
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def snomed_data_dir():
     """Path to SNOMED CT data directory."""
     return Path(__file__).parent.parent / "data" / "terminology" / "SnomedCT"
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def snomed_search(snomed_data_dir):
     """Load SNOMED search index."""
     search = SNOMEDSearch()
