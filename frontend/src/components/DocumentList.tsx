@@ -2,6 +2,87 @@ import { useState, useEffect, useRef } from 'react';
 import { api } from '../api/client';
 import type { DocumentSummary } from '../types';
 
+interface AddFilesDialogProps {
+  projectName: string;
+  allDocuments: DocumentSummary[];
+  currentProjectDocs: DocumentSummary[];
+  onAdd: (docIds: string[]) => void;
+  onClose: () => void;
+  dialogRef: React.RefObject<HTMLDivElement | null>;
+}
+
+function AddFilesDialog({ projectName, allDocuments, currentProjectDocs, onAdd, onClose, dialogRef }: AddFilesDialogProps) {
+  const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set());
+
+  const currentDocIds = new Set(currentProjectDocs.map((d) => d.id));
+  const availableDocs = allDocuments.filter((d) => !currentDocIds.has(d.id));
+
+  const toggleDoc = (docId: string) => {
+    setSelectedDocs((prev) => {
+      const next = new Set(prev);
+      if (next.has(docId)) {
+        next.delete(docId);
+      } else {
+        next.add(docId);
+      }
+      return next;
+    });
+  };
+
+  const handleAdd = () => {
+    onAdd(Array.from(selectedDocs));
+  };
+
+  return (
+    <div className="add-files-dialog-backdrop">
+      <div className="add-files-dialog" ref={dialogRef}>
+        <div className="add-files-dialog-header">
+          <h3>Add Files to {projectName}</h3>
+          <button className="close-btn" onClick={onClose}>×</button>
+        </div>
+        <div className="add-files-dialog-body">
+          {availableDocs.length === 0 ? (
+            <p className="empty-hint">No documents available to add</p>
+          ) : (
+            <ul className="add-files-list">
+              {availableDocs.map((doc) => (
+                <li key={doc.id} className="add-files-item">
+                  <label className="add-files-checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={selectedDocs.has(doc.id)}
+                      onChange={() => toggleDoc(doc.id)}
+                    />
+                    <span className="add-files-doc-info">
+                      <span className="add-files-doc-id">{doc.id}</span>
+                      {doc.metadata.category != null && (
+                        <span className="add-files-doc-category">{String(doc.metadata.category)}</span>
+                      )}
+                      <span className="add-files-doc-project">
+                        From: {doc.metadata.project != null ? String(doc.metadata.project) : 'Uncategorized'}
+                      </span>
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="add-files-dialog-footer">
+          <button className="cancel-btn" onClick={onClose}>Cancel</button>
+          <button
+            className="add-btn"
+            onClick={handleAdd}
+            disabled={selectedDocs.size === 0}
+          >
+            Add {selectedDocs.size > 0 && `(${selectedDocs.size})`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type Filter = 'all' | 'annotated' | 'unannotated';
 
 interface Props {
@@ -23,10 +104,12 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
   const [editingProject, setEditingProject] = useState<string | null>(null);
   const [newProjectName, setNewProjectName] = useState('');
   const [showProjectMenu, setShowProjectMenu] = useState<string | null>(null);
+  const [showAddFilesDialog, setShowAddFilesDialog] = useState<string | null>(null);
   const [creatingProject, setCreatingProject] = useState(false);
   const [createProjectName, setCreateProjectName] = useState('');
   const uploadMenuRef = useRef<HTMLDivElement>(null);
   const projectMenuRef = useRef<HTMLDivElement>(null);
+  const addFilesDialogRef = useRef<HTMLDivElement>(null);
 
   const filtered = documents.filter((d) => {
     if (filter === 'annotated') return d.is_annotated;
@@ -225,42 +308,36 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
     setCreateProjectName('');
   };
 
-  const handleUploadToProject = async (e: React.ChangeEvent<HTMLInputElement>, project: string) => {
-    const fileList = e.target.files;
-    if (!fileList || fileList.length === 0) return;
+  const handleAddFilesToProject = async (projectName: string, docIds: string[]) => {
+    if (docIds.length === 0) return;
 
-    const files = Array.from(fileList).filter((f) => f.name.endsWith('.json'));
-    if (files.length === 0) {
-      setUploadError('No valid .json files selected');
-      return;
-    }
-
-    setUploading(true);
-    setUploadError(null);
     try {
-      const results = await api.uploadDocuments(files);
-      // Update metadata to assign to project
-      if (project !== 'Uncategorized') {
-        for (const summary of results) {
-          await api.updateDocumentMetadata(summary.id, { ...summary.metadata, project });
+      for (const docId of docIds) {
+        const doc = documents.find((d) => d.id === docId);
+        if (!doc) continue;
+
+        const updatedMetadata = { ...doc.metadata };
+        if (projectName === 'Uncategorized') {
+          delete updatedMetadata.project;
+        } else {
+          updatedMetadata.project = projectName;
         }
-        // Remove from empty projects once files are added
+        await api.updateDocumentMetadata(docId, updatedMetadata);
+      }
+
+      // Remove from empty projects once files are added
+      if (projectName !== 'Uncategorized') {
         setEmptyProjects((prev) => {
           const next = new Set(prev);
-          next.delete(project);
+          next.delete(projectName);
           return next;
         });
       }
-      const skipped = files.length - results.length;
-      if (skipped > 0) {
-        setUploadError(`Uploaded ${results.length} file(s). ${skipped} skipped (duplicates or errors).`);
-      }
+
+      setShowAddFilesDialog(null);
       onRefresh();
     } catch (err) {
-      setUploadError(String(err));
-    } finally {
-      setUploading(false);
-      e.target.value = '';
+      setUploadError(`Failed to add files: ${err}`);
     }
   };
 
@@ -273,13 +350,16 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
       if (projectMenuRef.current && !projectMenuRef.current.contains(event.target as Node)) {
         setShowProjectMenu(null);
       }
+      if (addFilesDialogRef.current && !addFilesDialogRef.current.contains(event.target as Node)) {
+        setShowAddFilesDialog(null);
+      }
     };
 
-    if (showUploadMenu || showProjectMenu) {
+    if (showUploadMenu || showProjectMenu || showAddFilesDialog) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [showUploadMenu, showProjectMenu]);
+  }, [showUploadMenu, showProjectMenu, showAddFilesDialog]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files;
@@ -458,16 +538,16 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
                 </button>
                 {showProjectMenu === project && (
                   <div className="project-menu" ref={projectMenuRef}>
-                    <label className="project-menu-item">
+                    <button
+                      className="project-menu-item"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowAddFilesDialog(project);
+                        setShowProjectMenu(null);
+                      }}
+                    >
                       Add Files
-                      <input
-                        type="file"
-                        accept=".json"
-                        onChange={(e) => handleUploadToProject(e, project)}
-                        multiple
-                        hidden
-                      />
-                    </label>
+                    </button>
                     {project !== 'Uncategorized' && (
                       <>
                         <button
@@ -493,6 +573,16 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
                       </>
                     )}
                   </div>
+                )}
+                {showAddFilesDialog === project && (
+                  <AddFilesDialog
+                    projectName={project}
+                    allDocuments={documents}
+                    currentProjectDocs={docs}
+                    onAdd={(docIds) => handleAddFilesToProject(project, docIds)}
+                    onClose={() => setShowAddFilesDialog(null)}
+                    dialogRef={addFilesDialogRef}
+                  />
                 )}
               </div>
             </div>
