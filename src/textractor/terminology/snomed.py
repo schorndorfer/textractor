@@ -1,53 +1,140 @@
-import rapidfuzz
-from rapidfuzz import process, fuzz
-from dataclasses import dataclass
+"""SNOMED CT search using SQLite FTS5 full-text search."""
 import csv
+import logging
+import sqlite3
+import threading
 from pathlib import Path
+from typing import Optional
 
-@dataclass
-class SNOMEDDescription:
-    description_id: int
-    concept_id: int
-    term: str
-    term_type: str  # FSN or SYNONYM
+logger = logging.getLogger(__name__)
+
 
 class SNOMEDSearch:
-    def __init__(self):
-        self.descriptions: list[SNOMEDDescription] = []
-        self._term_list: list[str] = []  # parallel list for rapidfuzz
-        self._word_index: dict[str, set[int]] = {}  # inverted index
-    
-    def load(self, rf2_dir: str):
-        """Load from SNOMED RF2 sct2_Description file."""
-        desc_files = list(Path(rf2_dir).glob("**/sct2_Description_Full-en*.txt"))
+    """
+    SNOMED CT search using SQLite FTS5 for persistent storage and efficient searching.
+
+    Features:
+    - Persistent storage (no reload on restart)
+    - Low memory footprint
+    - Fast full-text search with FTS5
+    - Substring matching with trigram tokenization
+    - Custom relevance scoring (exact, prefix, word boundary, position-based)
+    """
+
+    def __init__(self, db_path: Optional[Path] = None):
+        """
+        Initialize SNOMED search.
+
+        Args:
+            db_path: Path to SQLite database file. If None, uses in-memory database.
+        """
+        self.db_path = db_path
+        self.conn: Optional[sqlite3.Connection] = None
+        self._lock = threading.Lock()  # Ensure thread-safe access
+
+    def _get_connection(self) -> sqlite3.Connection:
+        """
+        Get or create database connection.
+
+        Uses check_same_thread=False to allow cross-thread access.
+        This is safe for our use case since we only do read operations
+        after initial database build.
+        """
+        if self.conn is None:
+            if self.db_path:
+                self.conn = sqlite3.connect(
+                    str(self.db_path),
+                    check_same_thread=False
+                )
+            else:
+                self.conn = sqlite3.connect(
+                    ":memory:",
+                    check_same_thread=False
+                )
+        return self.conn
+
+    def build_index(self, rf2_dir: Path) -> int:
+        """
+        Build SQLite FTS5 index from SNOMED RF2 files.
+
+        Args:
+            rf2_dir: Path to directory containing SNOMED RF2 files
+
+        Returns:
+            Number of descriptions indexed
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        # Create FTS5 virtual table with trigram tokenizer for substring matching
+        cursor.execute("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS snomed_fts USING fts5(
+                concept_id,
+                term,
+                term_type,
+                tokenize='trigram'
+            )
+        """)
+
+        # Clear existing data
+        cursor.execute("DELETE FROM snomed_fts")
+
+        # Find description files
+        desc_files = list(rf2_dir.glob("**/sct2_Description_Full-en*.txt"))
         if not desc_files:
-            desc_files = list(Path(rf2_dir).glob("**/sct2_Description_Snapshot-en*.txt"))
-        
+            desc_files = list(rf2_dir.glob("**/sct2_Description_Snapshot-en*.txt"))
+
+        if not desc_files:
+            raise FileNotFoundError(f"No SNOMED description files found in {rf2_dir}")
+
+        count = 0
         for desc_file in desc_files:
             with open(desc_file, "r", encoding="utf-8") as f:
                 reader = csv.DictReader(f, delimiter="\t")
+                batch = []
+
                 for row in reader:
                     if row["active"] == "1":
-                        desc = SNOMEDDescription(
-                            description_id=int(row["id"]),
-                            concept_id=int(row["conceptId"]),
-                            term=row["term"],
-                            term_type="FSN" if row["typeId"] == "900000000000003001" else "SYNONYM"
-                        )
-                        idx = len(self.descriptions)
-                        self.descriptions.append(desc)
-                        self._term_list.append(desc.term.lower())
-                        
-                        # Build word-level inverted index for pre-filtering
-                        for word in desc.term.lower().split():
-                            if len(word) >= 3:
-                                if word not in self._word_index:
-                                    self._word_index[word] = set()
-                                self._word_index[word].add(idx)
-        
-        print(f"Loaded {len(self.descriptions)} active descriptions")
-    
-    def _score_match(self, query: str, term: str, fuzzy_score: float) -> float:
+                        term_type = "FSN" if row["typeId"] == "900000000000003001" else "SYNONYM"
+                        batch.append((
+                            int(row["conceptId"]),
+                            row["term"],
+                            term_type
+                        ))
+                        count += 1
+
+                        # Insert in batches for performance
+                        if len(batch) >= 10000:
+                            cursor.executemany(
+                                "INSERT INTO snomed_fts (concept_id, term, term_type) VALUES (?, ?, ?)",
+                                batch
+                            )
+                            batch = []
+
+                # Insert remaining
+                if batch:
+                    cursor.executemany(
+                        "INSERT INTO snomed_fts (concept_id, term, term_type) VALUES (?, ?, ?)",
+                        batch
+                    )
+
+        conn.commit()
+        logger.info("Indexed %d active SNOMED descriptions in SQLite", count)
+        return count
+
+    def is_indexed(self) -> bool:
+        """Check if the database has been indexed."""
+        with self._lock:
+            try:
+                conn = self._get_connection()
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM snomed_fts")
+                count = cursor.fetchone()[0]
+                return count > 0
+            except sqlite3.OperationalError:
+                return False
+
+    def _score_match(self, query: str, term: str, base_score: float) -> float:
         """
         Multi-factor scoring for better relevance ranking.
 
@@ -56,18 +143,18 @@ class SNOMEDSearch:
         2. Prefix match (80 bonus)
         3. Word boundary match (60 bonus)
         4. Contains match with position bonus (40-20 bonus)
-        5. Fuzzy score (base score)
+        5. FTS5 rank (base score)
         """
         query_lower = query.lower()
         term_lower = term.lower()
 
         # Exact match
         if query_lower == term_lower:
-            return fuzzy_score + 100
+            return base_score + 100
 
         # Prefix match (term starts with query)
         if term_lower.startswith(query_lower):
-            return fuzzy_score + 80
+            return base_score + 80
 
         # Word boundary match (query matches start of a word in term)
         words = term_lower.split()
@@ -75,7 +162,7 @@ class SNOMEDSearch:
             if word.startswith(query_lower):
                 # Earlier words get higher bonus
                 position_bonus = 60 - (i * 5)
-                return fuzzy_score + max(position_bonus, 30)
+                return base_score + max(position_bonus, 30)
 
         # Contains match with position-based bonus
         if query_lower in term_lower:
@@ -83,75 +170,77 @@ class SNOMEDSearch:
             # Earlier positions get higher bonus (40 at start, 20 at end)
             position_ratio = position / max(len(term_lower), 1)
             position_bonus = 40 - (position_ratio * 20)
-            return fuzzy_score + position_bonus
+            return base_score + position_bonus
 
-        # Just fuzzy score
-        return fuzzy_score
+        # Just base score
+        return base_score
 
     def search(self, query: str, limit: int = 20) -> list[dict]:
-        query_lower = query.lower()
-        query_words = [w for w in query_lower.split() if len(w) >= 3]
+        """
+        Search SNOMED descriptions using FTS5 full-text search.
 
-        # Step 1: Pre-filter using inverted index (narrows 800K → hundreds)
-        if query_words:
-            # Find candidates that match ANY query word (prefix match on index)
-            candidate_ids = set()
-            for qw in query_words:
-                for indexed_word, ids in self._word_index.items():
-                    if indexed_word.startswith(qw):
-                        candidate_ids.update(ids)
+        Args:
+            query: Search query string
+            limit: Maximum number of results to return
 
-            if not candidate_ids:
-                # Fall back to full fuzzy search on smaller sample
-                candidate_ids = set(range(min(50000, len(self.descriptions))))
-
-            candidates = {self._term_list[i]: i for i in candidate_ids}
-        else:
-            # Very short query — just prefix match
-            candidates = {t: i for i, t in enumerate(self._term_list) if t.startswith(query_lower)}
-
-        if not candidates:
+        Returns:
+            List of matching descriptions with scores
+        """
+        if not query.strip():
             return []
 
-        # Step 2: Rank with rapidfuzz
-        matches = process.extract(
-            query_lower,
-            candidates.keys(),
-            scorer=fuzz.WRatio,
-            limit=limit * 3  # Get more candidates for re-ranking
-        )
+        with self._lock:
+            conn = self._get_connection()
+            cursor = conn.cursor()
 
-        # Step 3: Re-rank with custom scoring
-        scored_matches = []
-        for term, fuzzy_score, _ in matches:
-            custom_score = self._score_match(query_lower, term, fuzzy_score)
-            idx = candidates[term]
-            desc = self.descriptions[idx]
-            scored_matches.append({
-                "concept_id": desc.concept_id,
-                "term": desc.term,
-                "type": desc.term_type,
-                "score": round(custom_score, 1),
-                "idx": idx
-            })
+            # FTS5 MATCH query - rank is negative (higher is better match)
+            # We get more results than needed for re-ranking
+            cursor.execute("""
+                SELECT concept_id, term, term_type, rank
+                FROM snomed_fts
+                WHERE snomed_fts MATCH ?
+                ORDER BY rank
+                LIMIT ?
+            """, (query, limit * 3))
 
-        # Sort by custom score (descending)
-        scored_matches.sort(key=lambda x: x["score"], reverse=True)
+            results = cursor.fetchall()
 
-        # Deduplicate by concept_id, keeping highest scoring match for each
-        seen_concepts = set()
-        results = []
-        for match in scored_matches:
-            if match["concept_id"] not in seen_concepts:
-                seen_concepts.add(match["concept_id"])
-                results.append({
-                    "concept_id": match["concept_id"],
-                    "term": match["term"],
-                    "type": match["type"],
-                    "score": match["score"]
+            # Re-rank with custom scoring
+            scored_results = []
+            for concept_id, term, term_type, fts_rank in results:
+                # Convert FTS5 rank (negative) to positive score
+                # FTS rank is typically between -1 and -30
+                base_score = abs(fts_rank)
+                custom_score = self._score_match(query, term, base_score)
+
+                scored_results.append({
+                    "concept_id": concept_id,
+                    "term": term,
+                    "type": term_type,
+                    "score": round(custom_score, 1)
                 })
-                # Stop once we have enough unique results
-                if len(results) >= limit:
-                    break
 
-        return results
+            # Sort by custom score (descending)
+            scored_results.sort(key=lambda x: x["score"], reverse=True)
+
+            # Deduplicate by concept_id, keeping highest scoring match for each
+            seen_concepts = set()
+            unique_results = []
+            for result in scored_results:
+                if result["concept_id"] not in seen_concepts:
+                    seen_concepts.add(result["concept_id"])
+                    unique_results.append(result)
+
+            # Return top unique results
+            return unique_results[:limit]
+
+    def close(self):
+        """Close database connection."""
+        with self._lock:
+            if self.conn:
+                self.conn.close()
+                self.conn = None
+
+    def __del__(self):
+        """Cleanup on deletion."""
+        self.close()

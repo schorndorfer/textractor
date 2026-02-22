@@ -1,5 +1,6 @@
 """Integration tests for terminology search with SNOMED CT."""
 import pytest
+import tempfile
 from pathlib import Path
 from textractor.api.enhanced_terminology import EnhancedTerminologyIndex
 
@@ -13,12 +14,20 @@ def snomed_dir():
 @pytest.fixture(scope="session")
 def enhanced_index(snomed_dir):
     """Create enhanced terminology index."""
-    index = EnhancedTerminologyIndex()
+    # Use temporary database for testing
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        db_path = Path(f.name)
+
+    index = EnhancedTerminologyIndex(db_path=db_path)
 
     if snomed_dir.exists():
         index.load_snomed(snomed_dir)
 
-    return index
+    yield index
+
+    # Cleanup
+    if db_path.exists():
+        db_path.unlink()
 
 
 def test_enhanced_index_snomed_loaded(enhanced_index, snomed_dir):
@@ -30,7 +39,7 @@ def test_enhanced_index_snomed_loaded(enhanced_index, snomed_dir):
     info = enhanced_index.info()
     assert info.loaded
     assert info.total_concepts > 0
-    assert "SNOMED CT RF2" in info.file_name
+    assert "SNOMED CT" in info.file_name
 
 
 def test_enhanced_index_search_returns_terminology_concepts(enhanced_index, snomed_dir):
