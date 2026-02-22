@@ -7,7 +7,7 @@ import { SpanList } from './SpanList';
 interface Props {
   annotations: AnnotationFile;
   onChange: (ann: AnnotationFile) => void;
-  onSave: () => void;
+  onRevert: () => void;
   isDirty: boolean;
   saveError: string | null;
   spanColorMap: SpanColorMap;
@@ -23,7 +23,7 @@ interface Props {
 export function AnnotationPanel({
   annotations,
   onChange,
-  onSave,
+  onRevert,
   isDirty,
   saveError,
   spanColorMap,
@@ -87,8 +87,8 @@ export function AnnotationPanel({
           />
           <span>Completed</span>
         </label>
-        <button onClick={onSave} disabled={!isDirty} className={`save-btn${isDirty ? ' dirty' : ''}`}>
-          Save
+        <button onClick={onRevert} disabled={!isDirty} className={`save-btn${isDirty ? ' dirty' : ''}`}>
+          Revert
         </button>
       </div>
       {saveError && <p className="save-error">{saveError}</p>}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { api } from './api/client';
 import { AnnotationPanel } from './components/AnnotationPanel';
 import { AnnotationGraph } from './components/AnnotationGraph';
@@ -36,12 +36,17 @@ export function App() {
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [currentDoc, setCurrentDoc] = useState<Document | null>(null);
   const [annotations, setAnnotations] = useState<AnnotationFile | null>(null);
+  const [originalAnnotations, setOriginalAnnotations] = useState<AnnotationFile | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
   const [focusedSpanId, setFocusedSpanId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'document' | 'graph'>('document');
+
+  // Refs for auto-save
+  const autoSaveTimeoutRef = useRef<number | null>(null);
+  const isSavingRef = useRef(false);
 
   // Sidebar width and collapse state
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(DEFAULT_LEFT_WIDTH);
@@ -114,18 +119,35 @@ export function App() {
 
   useEffect(() => {
     if (!selectedDocId) return;
-    setLoading(true);
-    setSelectedAnnotationId(null); // Clear selection when switching documents
-    setFocusedSpanId(null); // Clear focused span when switching documents
-    Promise.all([api.getDocument(selectedDocId), api.getAnnotations(selectedDocId)])
-      .then(([doc, ann]) => {
+
+    // Auto-save before switching documents
+    const loadNewDocument = async () => {
+      if (isDirty && annotations && !isSavingRef.current) {
+        await saveAnnotations();
+      }
+
+      setLoading(true);
+      setSelectedAnnotationId(null); // Clear selection when switching documents
+      setFocusedSpanId(null); // Clear focused span when switching documents
+
+      try {
+        const [doc, ann] = await Promise.all([
+          api.getDocument(selectedDocId),
+          api.getAnnotations(selectedDocId)
+        ]);
         setCurrentDoc(doc);
         setAnnotations(ann);
+        setOriginalAnnotations(JSON.parse(JSON.stringify(ann)));
         setIsDirty(false);
         setSaveError(null);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadNewDocument();
   }, [selectedDocId]);
 
   const handleSpanCreated = (span: Span) => {
@@ -139,15 +161,63 @@ export function App() {
     setIsDirty(true);
   };
 
-  const handleSave = async () => {
-    if (!annotations || !selectedDocId) return;
+  // Debounced auto-save when annotations change
+  useEffect(() => {
+    if (!isDirty || !annotations) return;
+
+    // Clear existing timeout
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    // Set new timeout for auto-save (3 seconds after last change)
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      saveAnnotations();
+    }, 3000);
+
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, [isDirty, annotations]);
+
+  // Auto-save on page unload/refresh
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty && annotations && selectedDocId) {
+        // Try to save
+        saveAnnotations();
+        // Note: Modern browsers ignore custom messages, but we still need to call preventDefault
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty, annotations, selectedDocId]);
+
+  const saveAnnotations = async () => {
+    if (!annotations || !selectedDocId || isSavingRef.current) return;
+    isSavingRef.current = true;
     setSaveError(null);
     try {
       await api.saveAnnotations(selectedDocId, annotations);
       setIsDirty(false);
+      setOriginalAnnotations(JSON.parse(JSON.stringify(annotations)));
       refreshDocuments();
     } catch (err) {
       setSaveError(String(err));
+    } finally {
+      isSavingRef.current = false;
+    }
+  };
+
+  const handleRevert = () => {
+    if (originalAnnotations) {
+      setAnnotations(JSON.parse(JSON.stringify(originalAnnotations)));
+      setIsDirty(false);
+      setSaveError(null);
     }
   };
 
@@ -332,7 +402,7 @@ export function App() {
               <AnnotationPanel
                 annotations={annotations}
                 onChange={handleAnnotationChange}
-                onSave={handleSave}
+                onRevert={handleRevert}
                 isDirty={isDirty}
                 saveError={saveError}
                 spanColorMap={spanColorMap}
