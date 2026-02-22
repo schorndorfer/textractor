@@ -22,6 +22,8 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
   const [editingProject, setEditingProject] = useState<string | null>(null);
   const [newProjectName, setNewProjectName] = useState('');
   const [showProjectMenu, setShowProjectMenu] = useState<string | null>(null);
+  const [creatingProject, setCreatingProject] = useState(false);
+  const [createProjectName, setCreateProjectName] = useState('');
   const uploadMenuRef = useRef<HTMLDivElement>(null);
   const projectMenuRef = useRef<HTMLDivElement>(null);
 
@@ -126,6 +128,64 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
       onRefresh();
     } catch (err) {
       setUploadError(`Failed to move document: ${err}`);
+    }
+  };
+
+  const handleCreateProject = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!createProjectName.trim()) {
+      setCreatingProject(false);
+      return;
+    }
+
+    // Trigger file input for the new project
+    const fileInput = document.getElementById('new-project-file-input') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.click();
+    }
+  };
+
+  const handleNewProjectFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!createProjectName.trim()) return;
+
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) {
+      setCreatingProject(false);
+      setCreateProjectName('');
+      return;
+    }
+
+    const files = Array.from(fileList).filter((f) => f.name.endsWith('.json'));
+    if (files.length === 0) {
+      setUploadError('No valid .json files selected');
+      setCreatingProject(false);
+      setCreateProjectName('');
+      return;
+    }
+
+    setUploading(true);
+    setUploadError(null);
+    const projectName = createProjectName;
+    try {
+      const results = await api.uploadDocuments(files);
+      // Assign all uploaded documents to the new project
+      for (const summary of results) {
+        await api.updateDocumentMetadata(summary.id, { ...summary.metadata, project: projectName });
+      }
+      const skipped = files.length - results.length;
+      if (skipped > 0) {
+        setUploadError(`Uploaded ${results.length} file(s). ${skipped} skipped (duplicates or errors).`);
+      }
+      // Expand the new project
+      setExpandedProjects((prev) => new Set(prev).add(projectName));
+      onRefresh();
+    } catch (err) {
+      setUploadError(String(err));
+    } finally {
+      setUploading(false);
+      setCreatingProject(false);
+      setCreateProjectName('');
+      e.target.value = '';
     }
   };
 
@@ -270,6 +330,40 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
             {f}
           </button>
         ))}
+      </div>
+      <div className="create-project-container">
+        {creatingProject ? (
+          <form onSubmit={handleCreateProject} className="create-project-form">
+            <input
+              type="text"
+              className="create-project-input"
+              placeholder="Enter project name..."
+              value={createProjectName}
+              onChange={(e) => setCreateProjectName(e.target.value)}
+              onBlur={() => {
+                if (!createProjectName.trim()) {
+                  setCreatingProject(false);
+                }
+              }}
+              autoFocus
+            />
+            <input
+              id="new-project-file-input"
+              type="file"
+              accept=".json"
+              onChange={handleNewProjectFileUpload}
+              multiple
+              hidden
+            />
+          </form>
+        ) : (
+          <button
+            className="create-project-btn"
+            onClick={() => setCreatingProject(true)}
+          >
+            + New Project
+          </button>
+        )}
       </div>
       <ul className="doc-items">
         {Array.from(projectGroups.entries()).map(([project, docs]) => (

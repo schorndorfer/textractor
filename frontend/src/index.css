@@ -228,6 +228,49 @@ input { font-family: inherit; font-size: 13px; }
   font-weight: 600;
 }
 
+.create-project-container {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--sidebar-border);
+  background: var(--sidebar-bg);
+}
+
+.create-project-btn {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.create-project-btn:hover {
+  background: var(--primary-dark);
+}
+
+.create-project-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.create-project-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 2px solid var(--primary);
+  border-radius: 4px;
+  font-size: 12px;
+  outline: none;
+  background: white;
+}
+
+.create-project-input::placeholder {
+  color: var(--text-muted);
+}
+
 .doc-items { flex: 1; overflow-y: auto; }
 
 .project-group {
