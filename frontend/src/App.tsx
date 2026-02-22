@@ -202,6 +202,38 @@ export function App() {
     }
   };
 
+  const handlePreAnnotate = async () => {
+    if (!selectedDocId) return;
+
+    setPreAnnotateLoading(true);
+    setPreAnnotateError(null);
+
+    try {
+      const aiAnnotations = await api.preannotateDocument(selectedDocId);
+
+      // Load AI annotations as unsaved changes
+      setAnnotations(aiAnnotations);
+      setIsPreAnnotated(true);
+      setIsDirty(true);
+
+    } catch (err) {
+      const errorStr = String(err);
+      let errorMsg = 'Pre-annotation failed';
+
+      if (errorStr.includes('500') && errorStr.includes('ANTHROPIC_API_KEY')) {
+        errorMsg = 'API key not configured. Please contact administrator.';
+      } else if (errorStr.includes('502')) {
+        errorMsg = 'AI service error. Please try again.';
+      } else if (errorStr.includes('403')) {
+        errorMsg = 'Cannot pre-annotate a locked document.';
+      }
+
+      setPreAnnotateError(errorMsg);
+    } finally {
+      setPreAnnotateLoading(false);
+    }
+  };
+
   const handleAnnotationSelect = (annotationId: string | null) => {
     setSelectedAnnotationId((prev) => {
       const newValue = prev === annotationId ? null : annotationId;
