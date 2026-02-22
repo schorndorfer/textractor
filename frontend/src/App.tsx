@@ -118,7 +118,7 @@ export function App() {
 
   // Debounced auto-save when annotations change
   useEffect(() => {
-    if (!isDirty || !annotations || annotations.completed) return; // Don't auto-save locked documents
+    if (!isDirty || !annotations || annotations.completed || isPreAnnotated) return; // Don't auto-save locked documents or pre-annotated content
 
     // Clear existing timeout
     if (autoSaveTimeoutRef.current) {
@@ -135,7 +135,7 @@ export function App() {
         clearTimeout(autoSaveTimeoutRef.current);
       }
     };
-  }, [isDirty, annotations]);
+  }, [isDirty, annotations, isPreAnnotated]);
 
   // Auto-save on page unload/refresh
   useEffect(() => {
