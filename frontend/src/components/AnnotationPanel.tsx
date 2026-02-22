@@ -18,6 +18,9 @@ interface Props {
   onToggleCollapse?: () => void;
   collapsed?: boolean;
   onSpanClick?: (spanId: string) => void;
+  onPreAnnotate: () => void;
+  isPreAnnotating: boolean;
+  preAnnotateError: string | null;
 }
 
 export function AnnotationPanel({
@@ -34,6 +37,9 @@ export function AnnotationPanel({
   onToggleCollapse,
   collapsed,
   onSpanClick,
+  onPreAnnotate,
+  isPreAnnotating,
+  preAnnotateError,
 }: Props) {
   const isLocked = annotations.completed;
 
@@ -72,6 +78,22 @@ export function AnnotationPanel({
     onChange({ ...annotations, completed: !annotations.completed });
   };
 
+  const handlePreAnnotate = () => {
+    const hasExistingAnnotations =
+      annotations.spans.length > 0 ||
+      annotations.reasoning_steps.length > 0 ||
+      annotations.document_annotations.length > 0;
+
+    if (hasExistingAnnotations) {
+      const confirmed = window.confirm(
+        'This will replace all existing annotations with AI-generated content. Continue?'
+      );
+      if (!confirmed) return;
+    }
+
+    onPreAnnotate();
+  };
+
   return (
     <aside className="annotation-panel">
       <div className="panel-header">
@@ -87,6 +109,17 @@ export function AnnotationPanel({
         <h2>
           Annotations {isLocked && <span className="lock-icon" title="Document is locked">🔒</span>}
         </h2>
+        <button
+          onClick={handlePreAnnotate}
+          disabled={isLocked || isPreAnnotating}
+          className="preannotate-btn"
+          title="Generate AI annotations"
+        >
+          {isPreAnnotating ? '⏳ Pre-annotating...' : '✨ Pre-annotate'}
+        </button>
+        <button onClick={onRevert} disabled={!isDirty || isLocked} className={`save-btn${isDirty ? ' dirty' : ''}`}>
+          Revert
+        </button>
         <label className="completed-checkbox">
           <input
             type="checkbox"
@@ -95,11 +128,15 @@ export function AnnotationPanel({
           />
           <span>Completed</span>
         </label>
-        <button onClick={onRevert} disabled={!isDirty || isLocked} className={`save-btn${isDirty ? ' dirty' : ''}`}>
-          Revert
-        </button>
       </div>
-      {saveError && !isLocked && <p className="save-error">{saveError}</p>}
+      {isPreAnnotating && (
+        <div className="preannotate-loading">
+          ⏳ Generating AI annotations... This may take a moment.
+        </div>
+      )}
+      {(saveError || preAnnotateError) && !isLocked && (
+        <p className="save-error">{saveError || preAnnotateError}</p>
+      )}
       {isLocked && (
         <div className="locked-notice">
           <p>🔒 This document is locked. Uncheck "Completed" to make changes.</p>

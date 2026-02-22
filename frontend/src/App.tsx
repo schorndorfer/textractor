@@ -424,6 +424,9 @@ export function App() {
                 onToggleCollapse={toggleRightSidebar}
                 collapsed={rightSidebarCollapsed}
                 onSpanClick={setFocusedSpanId}
+                onPreAnnotate={handlePreAnnotate}
+                isPreAnnotating={preAnnotateLoading}
+                preAnnotateError={preAnnotateError}
               />
             </>
           )
