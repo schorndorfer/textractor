@@ -83,7 +83,7 @@ function AddFilesDialog({ projectName, allDocuments, currentProjectDocs, onAdd, 
   );
 }
 
-type Filter = 'all' | 'annotated' | 'unannotated';
+type Filter = 'all' | 'annotated' | 'unannotated' | 'completed' | 'incomplete';
 
 interface Props {
   documents: DocumentSummary[];
@@ -114,6 +114,8 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
   const filtered = documents.filter((d) => {
     if (filter === 'annotated') return d.is_annotated;
     if (filter === 'unannotated') return !d.is_annotated;
+    if (filter === 'completed') return d.is_completed;
+    if (filter === 'incomplete') return !d.is_completed;
     return true;
   });
 
@@ -417,7 +419,7 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
       </div>
       {uploadError && <p className="upload-error">{uploadError}</p>}
       <div className="filter-tabs">
-        {(['all', 'annotated', 'unannotated'] as Filter[]).map((f) => (
+        {(['all', 'annotated', 'unannotated', 'completed', 'incomplete'] as Filter[]).map((f) => (
           <button
             key={f}
             className={`filter-tab${filter === f ? ' active' : ''}`}
@@ -565,12 +567,13 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
                 {docs.map((doc) => (
                   <li
                     key={doc.id}
-                    className={`doc-item${doc.id === selectedId ? ' selected' : ''}${doc.is_annotated ? ' annotated' : ''}`}
+                    className={`doc-item${doc.id === selectedId ? ' selected' : ''}${doc.is_annotated ? ' annotated' : ''}${doc.is_completed ? ' completed' : ''}`}
                     onClick={() => onSelect(doc.id)}
                   >
                     <div className="doc-item-header">
                       <span className="doc-item-id">{doc.id}</span>
-                      {doc.is_annotated && <span className="badge">✓</span>}
+                      {doc.is_annotated && <span className="badge annotated-badge">✓</span>}
+                      {doc.is_completed && <span className="badge completed-badge">✔</span>}
                       <button
                         className="doc-action-btn"
                         onClick={(e) => handleDeleteDocument(doc.id, e)}

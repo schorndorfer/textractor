@@ -62,6 +62,10 @@ export function AnnotationPanel({
   const updateDocAnns = (docAnns: DocumentAnnotation[]) =>
     onChange({ ...annotations, document_annotations: docAnns });
 
+  const toggleCompleted = () => {
+    onChange({ ...annotations, completed: !annotations.completed });
+  };
+
   return (
     <aside className="annotation-panel">
       <div className="panel-header">
@@ -75,6 +79,14 @@ export function AnnotationPanel({
           </button>
         )}
         <h2>Annotations</h2>
+        <label className="completed-checkbox">
+          <input
+            type="checkbox"
+            checked={annotations.completed || false}
+            onChange={toggleCompleted}
+          />
+          <span>Completed</span>
+        </label>
         <button onClick={onSave} disabled={!isDirty} className={`save-btn${isDirty ? ' dirty' : ''}`}>
           Save
         </button>

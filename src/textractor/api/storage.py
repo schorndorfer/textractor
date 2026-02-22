@@ -23,11 +23,20 @@ class DocumentStore:
             try:
                 doc = self._read_document(path)
                 ann_path = self.root / f"{doc.id}.ann.json"
+                is_annotated = ann_path.exists()
+                is_completed = False
+                if is_annotated:
+                    try:
+                        ann = self.get_annotations(doc.id)
+                        is_completed = ann.completed
+                    except Exception:
+                        logger.warning("Could not read annotations for %s", doc.id)
                 summaries.append(
                     DocumentSummary(
                         id=doc.id,
                         metadata=doc.metadata,
-                        is_annotated=ann_path.exists(),
+                        is_annotated=is_annotated,
+                        is_completed=is_completed,
                         text_preview=doc.text[:200],
                     )
                 )

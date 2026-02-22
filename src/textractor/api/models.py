@@ -42,6 +42,7 @@ class AnnotationFile(BaseModel):
     spans: list[Span] = Field(default_factory=list)
     reasoning_steps: list[ReasoningStep] = Field(default_factory=list)
     document_annotations: list[DocumentAnnotation] = Field(default_factory=list)
+    completed: bool = False
 
 
 class Document(BaseModel):
@@ -54,6 +55,7 @@ class DocumentSummary(BaseModel):
     id: str
     metadata: dict
     is_annotated: bool
+    is_completed: bool
     text_preview: str
 
 
