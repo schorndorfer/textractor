@@ -28,6 +28,18 @@ export const api = {
 
   getDocument: (docId: string) => request<Document>(`/documents/${docId}`),
 
+  updateDocumentMetadata: (docId: string, metadata: Record<string, unknown>) =>
+    request<Document>(`/documents/${docId}/metadata`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ metadata }),
+    }),
+
+  deleteDocument: (docId: string) =>
+    request<{ status: string; doc_id: string }>(`/documents/${docId}`, {
+      method: 'DELETE',
+    }),
+
   getAnnotations: (docId: string) =>
     request<AnnotationFile>(`/documents/${docId}/annotations`),
 

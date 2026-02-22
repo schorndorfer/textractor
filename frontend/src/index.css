@@ -275,6 +275,78 @@ input { font-family: inherit; font-size: 13px; }
   padding: 0;
 }
 
+.project-name-input {
+  flex: 1;
+  padding: 2px 6px;
+  border: 1px solid var(--primary);
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  background: white;
+  outline: none;
+}
+
+.project-actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.project-action-btn {
+  padding: 2px 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  font-size: 16px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.project-action-btn:hover {
+  background: var(--sidebar-surface);
+  border-color: var(--sidebar-border);
+  color: var(--text);
+}
+
+.project-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  min-width: 120px;
+  margin-top: 2px;
+}
+
+.project-menu-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.project-menu-item:hover {
+  background: var(--bg);
+}
+
+.project-menu-delete {
+  color: var(--danger);
+}
+
+.project-menu-delete:hover {
+  background: #fee;
+}
+
 .doc-item {
   padding: 10px 12px;
   border-bottom: 1px solid var(--sidebar-border);
@@ -287,7 +359,46 @@ input { font-family: inherit; font-size: 13px; }
 .doc-item.annotated .doc-item-id { color: var(--success); }
 
 .doc-item-header { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
-.doc-item-id { font-weight: 600; font-size: 12px; }
+.doc-item-id { flex: 1; font-weight: 600; font-size: 12px; }
+
+.doc-action-btn {
+  padding: 0 4px;
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s;
+  line-height: 1;
+}
+
+.doc-action-btn:hover {
+  color: var(--danger);
+}
+
+.doc-project-select {
+  margin-top: 4px;
+  padding: 2px 6px;
+  font-size: 10px;
+  border: 1px solid var(--sidebar-border);
+  border-radius: 3px;
+  background: var(--sidebar-surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s;
+}
+
+.doc-project-select:hover {
+  border-color: var(--primary);
+  background: white;
+}
+
+.doc-project-select:focus {
+  border-color: var(--primary);
+  background: white;
+  color: var(--text);
+}
 .badge {
   background: var(--success);
   color: #fff;

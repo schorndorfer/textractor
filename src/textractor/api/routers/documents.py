@@ -2,11 +2,16 @@ from __future__ import annotations
 
 import json
 
+import logging
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from pydantic import BaseModel
 
 from ..dependencies import get_store
 from ..models import Document, DocumentSummary
 from ..storage import DocumentStore
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
@@ -73,3 +78,40 @@ def get_document(doc_id: str, store: DocumentStore = Depends(get_store)) -> Docu
     if doc is None:
         raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
     return doc
+
+
+class UpdateDocumentMetadata(BaseModel):
+    metadata: dict
+
+
+@router.patch("/{doc_id}/metadata", response_model=Document)
+def update_document_metadata(
+    doc_id: str,
+    update: UpdateDocumentMetadata,
+    store: DocumentStore = Depends(get_store),
+) -> Document:
+    """Update document metadata fields."""
+    doc = store.get_document(doc_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
+
+    # Update metadata
+    doc.metadata.update(update.metadata)
+    store.save_document(doc)
+    return doc
+
+
+@router.delete("/{doc_id}")
+def delete_document(doc_id: str, store: DocumentStore = Depends(get_store)) -> dict:
+    """Delete a document and its annotations."""
+    doc_path = store._doc_path(doc_id)
+    ann_path = store._ann_path(doc_id)
+
+    if not doc_path.exists():
+        raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
+
+    doc_path.unlink()
+    if ann_path.exists():
+        ann_path.unlink()
+
+    return {"status": "deleted", "doc_id": doc_id}
