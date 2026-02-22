@@ -27,6 +27,7 @@ class ReasoningStep(BaseModel):
     id: str = Field(default_factory=lambda: _uuid("step"))
     concept: Concept
     span_ids: list[str] = Field(default_factory=list)
+    note: str = ""
 
 
 class DocumentAnnotation(BaseModel):

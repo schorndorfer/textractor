@@ -20,6 +20,7 @@ export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMa
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftConcept, setDraftConcept] = useState<TerminologyConcept | null>(null);
   const [draftSpanIds, setDraftSpanIds] = useState<string[]>([]);
+  const [draftNote, setDraftNote] = useState<string>('');
 
   // Compute which steps are selected (related to the selected document annotation)
   const selectedStepIds = useMemo(() => {
@@ -34,18 +35,20 @@ export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMa
       id,
       concept: { code: '', display: '', system: 'SNOMED-CT' },
       span_ids: [],
+      note: '',
     };
     onChange([...steps, newStep]);
     setEditingId(id);
     setDraftConcept(null);
     setDraftSpanIds([]);
+    setDraftNote('');
   };
 
   const commitEdit = (stepId: string) => {
     if (!draftConcept) return;
     onChange(
       steps.map((s) =>
-        s.id === stepId ? { ...s, concept: draftConcept, span_ids: draftSpanIds } : s
+        s.id === stepId ? { ...s, concept: draftConcept, span_ids: draftSpanIds, note: draftNote } : s
       )
     );
     setEditingId(null);
@@ -88,6 +91,15 @@ export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMa
                   onChange={setDraftConcept}
                   placeholder="Search for intermediate concept..."
                 />
+                <div className="form-field">
+                  <label>Note (optional):</label>
+                  <textarea
+                    value={draftNote}
+                    onChange={(e) => setDraftNote(e.target.value)}
+                    placeholder="Add free-form notes about this reasoning step..."
+                    rows={3}
+                  />
+                </div>
                 {availableSpans.length > 0 && (
                   <div className="checkbox-group">
                     <label className="checkbox-group-label">Link spans:</label>
@@ -132,6 +144,7 @@ export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMa
                       <span className="concept-code">[{step.concept.code}]</span>
                     )}
                   </span>
+                  {step.note && <div className="item-note">{step.note}</div>}
                   <span className="item-meta">{step.span_ids.length} span(s) linked</span>
                 </div>
                 <div className="item-actions">
@@ -140,6 +153,7 @@ export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMa
                       setEditingId(step.id);
                       setDraftConcept(step.concept.code ? step.concept : null);
                       setDraftSpanIds(step.span_ids);
+                      setDraftNote(step.note || '');
                     }}
                     className="btn-small"
                   >

@@ -15,6 +15,7 @@ export interface ReasoningStep {
   id: string;
   concept: Concept;
   span_ids: string[];
+  note?: string;
 }
 
 export interface DocumentAnnotation {
