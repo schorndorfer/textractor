@@ -47,10 +47,51 @@ class SNOMEDSearch:
         
         print(f"Loaded {len(self.descriptions)} active descriptions")
     
+    def _score_match(self, query: str, term: str, fuzzy_score: float) -> float:
+        """
+        Multi-factor scoring for better relevance ranking.
+
+        Priority order:
+        1. Exact match (100 bonus)
+        2. Prefix match (80 bonus)
+        3. Word boundary match (60 bonus)
+        4. Contains match with position bonus (40-20 bonus)
+        5. Fuzzy score (base score)
+        """
+        query_lower = query.lower()
+        term_lower = term.lower()
+
+        # Exact match
+        if query_lower == term_lower:
+            return fuzzy_score + 100
+
+        # Prefix match (term starts with query)
+        if term_lower.startswith(query_lower):
+            return fuzzy_score + 80
+
+        # Word boundary match (query matches start of a word in term)
+        words = term_lower.split()
+        for i, word in enumerate(words):
+            if word.startswith(query_lower):
+                # Earlier words get higher bonus
+                position_bonus = 60 - (i * 5)
+                return fuzzy_score + max(position_bonus, 30)
+
+        # Contains match with position-based bonus
+        if query_lower in term_lower:
+            position = term_lower.index(query_lower)
+            # Earlier positions get higher bonus (40 at start, 20 at end)
+            position_ratio = position / max(len(term_lower), 1)
+            position_bonus = 40 - (position_ratio * 20)
+            return fuzzy_score + position_bonus
+
+        # Just fuzzy score
+        return fuzzy_score
+
     def search(self, query: str, limit: int = 20) -> list[dict]:
         query_lower = query.lower()
         query_words = [w for w in query_lower.split() if len(w) >= 3]
-        
+
         # Step 1: Pre-filter using inverted index (narrows 800K → hundreds)
         if query_words:
             # Find candidates that match ANY query word (prefix match on index)
@@ -59,35 +100,51 @@ class SNOMEDSearch:
                 for indexed_word, ids in self._word_index.items():
                     if indexed_word.startswith(qw):
                         candidate_ids.update(ids)
-            
+
             if not candidate_ids:
                 # Fall back to full fuzzy search on smaller sample
                 candidate_ids = set(range(min(50000, len(self.descriptions))))
-            
+
             candidates = {self._term_list[i]: i for i in candidate_ids}
         else:
             # Very short query — just prefix match
             candidates = {t: i for i, t in enumerate(self._term_list) if t.startswith(query_lower)}
-        
+
         if not candidates:
             return []
-        
+
         # Step 2: Rank with rapidfuzz
         matches = process.extract(
             query_lower,
             candidates.keys(),
             scorer=fuzz.WRatio,
-            limit=limit
+            limit=limit * 3  # Get more candidates for re-ranking
         )
-        
-        results = []
-        for term, score, _ in matches:
+
+        # Step 3: Re-rank with custom scoring
+        scored_matches = []
+        for term, fuzzy_score, _ in matches:
+            custom_score = self._score_match(query_lower, term, fuzzy_score)
             idx = candidates[term]
             desc = self.descriptions[idx]
-            results.append({
+            scored_matches.append({
                 "concept_id": desc.concept_id,
                 "term": desc.term,
                 "type": desc.term_type,
-                "score": round(score, 1)
+                "score": round(custom_score, 1),
+                "idx": idx
+            })
+
+        # Sort by custom score (descending)
+        scored_matches.sort(key=lambda x: x["score"], reverse=True)
+
+        # Return top results
+        results = []
+        for match in scored_matches[:limit]:
+            results.append({
+                "concept_id": match["concept_id"],
+                "term": match["term"],
+                "type": match["type"],
+                "score": match["score"]
             })
         return results
