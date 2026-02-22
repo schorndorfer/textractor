@@ -12,6 +12,7 @@ interface Props {
   docAnnColorMap: SpanColorMap;
   selectedAnnotationId: string | null;
   onAnnotationSelect: (annotationId: string | null) => void;
+  disabled?: boolean;
 }
 
 export function DocumentAnnotationList({
@@ -22,6 +23,7 @@ export function DocumentAnnotationList({
   docAnnColorMap,
   selectedAnnotationId,
   onAnnotationSelect,
+  disabled,
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftConcept, setDraftConcept] = useState<TerminologyConcept | null>(null);
@@ -177,34 +179,38 @@ export function DocumentAnnotationList({
                 </span>
                 {ann.note && <div className="item-note">{ann.note}</div>}
               </div>
-              <div className="item-actions" onClick={(e) => e.stopPropagation()}>
-                <button
-                  onClick={() => {
-                    setEditingId(ann.id);
-                    setDraftConcept(ann.concept.code ? ann.concept : null);
-                    setDraftSpanIds(ann.evidence_span_ids);
-                    setDraftStepIds(ann.reasoning_step_ids);
-                    setDraftNote(ann.note || '');
-                  }}
-                  className="btn-small"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => deleteAnnotation(ann.id)}
-                  className="btn-small btn-danger"
-                >
-                  Delete
-                </button>
-              </div>
+              {!disabled && (
+                <div className="item-actions" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    onClick={() => {
+                      setEditingId(ann.id);
+                      setDraftConcept(ann.concept.code ? ann.concept : null);
+                      setDraftSpanIds(ann.evidence_span_ids);
+                      setDraftStepIds(ann.reasoning_step_ids);
+                      setDraftNote(ann.note || '');
+                    }}
+                    className="btn-small"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => deleteAnnotation(ann.id)}
+                    className="btn-small btn-danger"
+                  >
+                    Delete
+                  </button>
+                </div>
+              )}
             </div>
           )}
           </div>
         );
       })}
-      <button onClick={addAnnotation} className="btn-add">
-        + Add Document Annotation
-      </button>
+      {!disabled && (
+        <button onClick={addAnnotation} className="btn-add">
+          + Add Document Annotation
+        </button>
+      )}
     </div>
   );
 }

@@ -102,7 +102,7 @@ export function App() {
 
   // Debounced auto-save when annotations change
   useEffect(() => {
-    if (!isDirty || !annotations) return;
+    if (!isDirty || !annotations || annotations.completed) return; // Don't auto-save locked documents
 
     // Clear existing timeout
     if (autoSaveTimeoutRef.current) {
@@ -138,6 +138,12 @@ export function App() {
 
   const saveAnnotations = async () => {
     if (!annotations || !selectedDocId || isSavingRef.current) return;
+
+    // Don't attempt to save if document is locked
+    if (annotations.completed) {
+      return;
+    }
+
     isSavingRef.current = true;
     setSaveError(null);
     try {
@@ -146,7 +152,11 @@ export function App() {
       setOriginalAnnotations(deepClone(annotations));
       refreshDocuments();
     } catch (err) {
-      setSaveError(String(err));
+      // Suppress 403 errors for locked documents (shouldn't happen, but just in case)
+      const errorStr = String(err);
+      if (!errorStr.includes('403') || !annotations.completed) {
+        setSaveError(errorStr);
+      }
     } finally {
       isSavingRef.current = false;
     }

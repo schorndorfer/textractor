@@ -6,10 +6,14 @@ interface Props {
   onChange: (spans: Span[]) => void;
   spanColorMap: SpanColorMap;
   onSpanClick?: (spanId: string) => void;
+  disabled?: boolean;
 }
 
-export function SpanList({ spans, onChange, spanColorMap, onSpanClick }: Props) {
-  const deleteSpan = (id: string) => onChange(spans.filter((s) => s.id !== id));
+export function SpanList({ spans, onChange, spanColorMap, onSpanClick, disabled }: Props) {
+  const deleteSpan = (id: string) => {
+    if (disabled) return;
+    onChange(spans.filter((s) => s.id !== id));
+  };
 
   return (
     <ul className="span-list">
@@ -30,13 +34,15 @@ export function SpanList({ spans, onChange, spanColorMap, onSpanClick }: Props) 
             <span className="span-offsets">
               [{span.start}–{span.end}]
             </span>
-            <button
-              onClick={() => deleteSpan(span.id)}
-              className="delete-btn"
-              title="Delete span"
-            >
-              ×
-            </button>
+            {!disabled && (
+              <button
+                onClick={() => deleteSpan(span.id)}
+                className="delete-btn"
+                title="Delete span"
+              >
+                ×
+              </button>
+            )}
           </li>
         );
       })}

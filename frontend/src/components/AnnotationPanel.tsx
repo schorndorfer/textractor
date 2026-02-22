@@ -108,7 +108,7 @@ export function AnnotationPanel({
 
       <section className="panel-section">
         <h3>Spans ({annotations.spans.length})</h3>
-        <SpanList spans={annotations.spans} onChange={updateSpans} spanColorMap={spanColorMap} onSpanClick={onSpanClick} />
+        <SpanList spans={annotations.spans} onChange={updateSpans} spanColorMap={spanColorMap} onSpanClick={onSpanClick} disabled={isLocked} />
       </section>
 
       <section className="panel-section">
@@ -120,6 +120,7 @@ export function AnnotationPanel({
           stepColorMap={stepColorMap}
           selectedAnnotationId={selectedAnnotationId}
           annotations={annotations.document_annotations}
+          disabled={isLocked}
         />
       </section>
 
@@ -133,6 +134,7 @@ export function AnnotationPanel({
           docAnnColorMap={docAnnColorMap}
           selectedAnnotationId={selectedAnnotationId}
           onAnnotationSelect={onAnnotationSelect}
+          disabled={isLocked}
         />
       </section>
     </aside>
