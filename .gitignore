@@ -9,6 +9,6 @@ wheels/
 # Virtual environments
 .venv
 
-# SNOMED CT source files (keep directory structure but ignore large files)
-data/snomed/*
-!data/snomed/README.md
+# Terminology source files (keep directory structure but ignore large files)
+data/terminology/*
+!data/terminology/README.md
