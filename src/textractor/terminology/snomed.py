@@ -138,13 +138,20 @@ class SNOMEDSearch:
         # Sort by custom score (descending)
         scored_matches.sort(key=lambda x: x["score"], reverse=True)
 
-        # Return top results
+        # Deduplicate by concept_id, keeping highest scoring match for each
+        seen_concepts = set()
         results = []
-        for match in scored_matches[:limit]:
-            results.append({
-                "concept_id": match["concept_id"],
-                "term": match["term"],
-                "type": match["type"],
-                "score": match["score"]
-            })
+        for match in scored_matches:
+            if match["concept_id"] not in seen_concepts:
+                seen_concepts.add(match["concept_id"])
+                results.append({
+                    "concept_id": match["concept_id"],
+                    "term": match["term"],
+                    "type": match["type"],
+                    "score": match["score"]
+                })
+                # Stop once we have enough unique results
+                if len(results) >= limit:
+                    break
+
         return results
