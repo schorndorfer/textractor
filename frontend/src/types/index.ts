@@ -23,6 +23,7 @@ export interface DocumentAnnotation {
   concept: Concept;
   evidence_span_ids: string[];
   reasoning_step_ids: string[];
+  note?: string;
 }
 
 export interface AnnotationFile {

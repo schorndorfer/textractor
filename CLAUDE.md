@@ -148,3 +148,4 @@ code	display	system
 1. **SNOMED CT RF2** (preferred): If `data/terminology/SnomedCT/` exists, loads 2.6M+ SNOMED descriptions with fuzzy search
 2. **TSV fallback**: If SNOMED not found and `TEXTRACTOR_TERMINOLOGY_PATH` is set, loads simple TSV file
 3. **Empty**: If neither is available, search returns empty results
+- When resolving github issues, always create a branch, then a PR
