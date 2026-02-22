@@ -230,6 +230,51 @@ input { font-family: inherit; font-size: 13px; }
 
 .doc-items { flex: 1; overflow-y: auto; }
 
+.project-group {
+  list-style: none;
+}
+
+.project-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  background: var(--sidebar-shade-1);
+  border-bottom: 1px solid var(--sidebar-border);
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text);
+  transition: background 0.1s;
+}
+
+.project-header:hover {
+  background: var(--sidebar-shade-2);
+}
+
+.project-expand-icon {
+  font-size: 10px;
+  color: var(--text-muted);
+  width: 12px;
+  display: inline-block;
+}
+
+.project-name {
+  flex: 1;
+}
+
+.project-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: normal;
+}
+
+.project-docs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
 .doc-item {
   padding: 10px 12px;
   border-bottom: 1px solid var(--sidebar-border);

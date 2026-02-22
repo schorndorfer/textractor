@@ -18,6 +18,7 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [showUploadMenu, setShowUploadMenu] = useState(false);
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set(['Uncategorized']));
   const uploadMenuRef = useRef<HTMLDivElement>(null);
 
   const filtered = documents.filter((d) => {
@@ -25,6 +26,28 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
     if (filter === 'unannotated') return !d.is_annotated;
     return true;
   });
+
+  // Group documents by project
+  const projectGroups = new Map<string, DocumentSummary[]>();
+  filtered.forEach((doc) => {
+    const project = doc.metadata.project ? String(doc.metadata.project) : 'Uncategorized';
+    if (!projectGroups.has(project)) {
+      projectGroups.set(project, []);
+    }
+    projectGroups.get(project)!.push(doc);
+  });
+
+  const toggleProject = (project: string) => {
+    setExpandedProjects((prev) => {
+      const next = new Set(prev);
+      if (next.has(project)) {
+        next.delete(project);
+      } else {
+        next.add(project);
+      }
+      return next;
+    });
+  };
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -133,18 +156,36 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
         ))}
       </div>
       <ul className="doc-items">
-        {filtered.map((doc) => (
-          <li
-            key={doc.id}
-            className={`doc-item${doc.id === selectedId ? ' selected' : ''}${doc.is_annotated ? ' annotated' : ''}`}
-            onClick={() => onSelect(doc.id)}
-          >
-            <div className="doc-item-header">
-              <span className="doc-item-id">{doc.id}</span>
-              {doc.is_annotated && <span className="badge">✓</span>}
+        {Array.from(projectGroups.entries()).map(([project, docs]) => (
+          <li key={project} className="project-group">
+            <div
+              className="project-header"
+              onClick={() => toggleProject(project)}
+            >
+              <span className="project-expand-icon">
+                {expandedProjects.has(project) ? '▾' : '▸'}
+              </span>
+              <span className="project-name">{project}</span>
+              <span className="project-count">({docs.length})</span>
             </div>
-            {doc.metadata.category != null && (
-              <div className="doc-category">{String(doc.metadata.category)}</div>
+            {expandedProjects.has(project) && (
+              <ul className="project-docs">
+                {docs.map((doc) => (
+                  <li
+                    key={doc.id}
+                    className={`doc-item${doc.id === selectedId ? ' selected' : ''}${doc.is_annotated ? ' annotated' : ''}`}
+                    onClick={() => onSelect(doc.id)}
+                  >
+                    <div className="doc-item-header">
+                      <span className="doc-item-id">{doc.id}</span>
+                      {doc.is_annotated && <span className="badge">✓</span>}
+                    </div>
+                    {doc.metadata.category != null && (
+                      <div className="doc-category">{String(doc.metadata.category)}</div>
+                    )}
+                  </li>
+                ))}
+              </ul>
             )}
           </li>
         ))}
