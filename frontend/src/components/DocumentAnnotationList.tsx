@@ -47,6 +47,7 @@ export function DocumentAnnotationList({
       evidence_span_ids: [],
       reasoning_step_ids: [],
       note: '',
+      source: 'human',
     };
     onChange([...annotations, newAnn]);
     setEditingId(id);
