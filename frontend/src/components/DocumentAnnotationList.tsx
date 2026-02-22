@@ -189,6 +189,9 @@ export function DocumentAnnotationList({
               )}
               <div className="item-info">
                 <span className="concept-label">
+                  {ann.source === 'model' && (
+                    <span className="ai-badge" title="Model-generated">✨</span>
+                  )}
                   {ann.concept.display || '(no concept)'}{' '}
                   {ann.concept.code && (
                     <span className="concept-code">[{ann.concept.code}]</span>
