@@ -95,11 +95,11 @@ export function AnnotationPanel({
           />
           <span>Completed</span>
         </label>
-        <button onClick={onRevert} disabled={!isDirty} className={`save-btn${isDirty ? ' dirty' : ''}`}>
+        <button onClick={onRevert} disabled={!isDirty || isLocked} className={`save-btn${isDirty ? ' dirty' : ''}`}>
           Revert
         </button>
       </div>
-      {saveError && <p className="save-error">{saveError}</p>}
+      {saveError && !isLocked && <p className="save-error">{saveError}</p>}
       {isLocked && (
         <div className="locked-notice">
           <p>🔒 This document is locked. Uncheck "Completed" to make changes.</p>

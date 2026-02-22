@@ -90,15 +90,26 @@ export function App() {
   }, [selectedDocId]);
 
   const handleSpanCreated = (span: Span) => {
-    if (!annotations) return;
+    if (!annotations || annotations.completed) return; // Don't create spans in locked documents
     setAnnotations({ ...annotations, spans: [...annotations.spans, span] });
     setIsDirty(true);
   };
 
   const handleAnnotationChange = (updated: AnnotationFile) => {
+    // Don't allow changes to locked documents (except toggling completed status)
+    if (annotations?.completed && updated.completed) {
+      return;
+    }
     setAnnotations(updated);
     setIsDirty(true);
   };
+
+  // Clear errors when document lock status changes
+  useEffect(() => {
+    if (annotations?.completed) {
+      setSaveError(null);
+    }
+  }, [annotations?.completed]);
 
   // Debounced auto-save when annotations change
   useEffect(() => {
@@ -139,8 +150,14 @@ export function App() {
   const saveAnnotations = async () => {
     if (!annotations || !selectedDocId || isSavingRef.current) return;
 
-    // Don't attempt to save if document is locked
-    if (annotations.completed) {
+    // Allow saving when unlocking (completed changing from true to false)
+    // Block saving when document is locked and not being unlocked
+    const wasCompleted = originalAnnotations?.completed || false;
+    const isCompleted = annotations.completed;
+    const isUnlocking = wasCompleted && !isCompleted;
+
+    if (isCompleted && !isUnlocking) {
+      // Document is locked and we're not unlocking it, don't save
       return;
     }
 
@@ -152,9 +169,9 @@ export function App() {
       setOriginalAnnotations(deepClone(annotations));
       refreshDocuments();
     } catch (err) {
-      // Suppress 403 errors for locked documents (shouldn't happen, but just in case)
+      // Suppress 403 errors for locked documents
       const errorStr = String(err);
-      if (!errorStr.includes('403') || !annotations.completed) {
+      if (!errorStr.includes('403')) {
         setSaveError(errorStr);
       }
     } finally {

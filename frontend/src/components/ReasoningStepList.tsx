@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { ReasoningStep, Span, TerminologyConcept, DocumentAnnotation } from '../types';
 import type { SpanColorMap } from '../App';
 import { ConceptSearch } from './ConceptSearch';
@@ -23,6 +23,13 @@ export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMa
   const [draftSpanIds, setDraftSpanIds] = useState<string[]>([]);
   const [draftNote, setDraftNote] = useState<string>('');
 
+  // Close any open edits when document becomes locked
+  useEffect(() => {
+    if (disabled && editingId) {
+      setEditingId(null);
+    }
+  }, [disabled, editingId]);
+
   // Compute which steps are selected (related to the selected document annotation)
   const selectedStepIds = useMemo(() => {
     if (!selectedAnnotationId) return new Set<string>();
@@ -31,6 +38,7 @@ export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMa
   }, [selectedAnnotationId, annotations]);
 
   const addStep = () => {
+    if (disabled) return;
     const id = randomId('step');
     const newStep: ReasoningStep = {
       id,

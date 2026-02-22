@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { DocumentAnnotation, ReasoningStep, Span, TerminologyConcept } from '../types';
 import type { SpanColorMap } from '../App';
 import { ConceptSearch } from './ConceptSearch';
@@ -31,7 +31,15 @@ export function DocumentAnnotationList({
   const [draftStepIds, setDraftStepIds] = useState<string[]>([]);
   const [draftNote, setDraftNote] = useState<string>('');
 
+  // Close any open edits when document becomes locked
+  useEffect(() => {
+    if (disabled && editingId) {
+      setEditingId(null);
+    }
+  }, [disabled, editingId]);
+
   const addAnnotation = () => {
+    if (disabled) return;
     const id = randomId('ann');
     const newAnn: DocumentAnnotation = {
       id,
