@@ -65,6 +65,14 @@ def save_annotations(
             status_code=400, detail="doc_id in body does not match URL parameter"
         )
 
+    # Prevent modifications to completed documents (except unchecking completed status)
+    existing = store.get_annotations(doc_id)
+    if existing.completed and ann.completed:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot modify annotations for a completed document. Uncheck 'Completed' first to make changes.",
+        )
+
     _validate_referential_integrity(ann)
     store.save_annotations(ann)
     return ann

@@ -42,12 +42,13 @@ interface Props {
   fontSize: number;
   onFontSizeChange: (delta: number) => void;
   focusedSpanId?: string | null;
+  disabled?: boolean;
 }
 
 const MIN_FONT_SIZE = 10;
 const MAX_FONT_SIZE = 24;
 
-export function DocumentViewer({ doc, spans, spanColorMap, onSpanCreated, fontSize, onFontSizeChange, focusedSpanId }: Props) {
+export function DocumentViewer({ doc, spans, spanColorMap, onSpanCreated, fontSize, onFontSizeChange, focusedSpanId, disabled }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Scroll to focused span when it changes
@@ -61,6 +62,8 @@ export function DocumentViewer({ doc, spans, spanColorMap, onSpanCreated, fontSi
   }, [focusedSpanId]);
 
   const handleMouseUp = () => {
+    if (disabled) return; // Prevent span creation when document is locked
+
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed || !containerRef.current) return;
 

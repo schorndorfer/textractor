@@ -304,6 +304,7 @@ export function App() {
                 fontSize={fontSize}
                 onFontSizeChange={handleFontSizeChange}
                 focusedSpanId={focusedSpanId}
+                disabled={annotations?.completed || false}
               />
             ) : (
               <AnnotationGraph
