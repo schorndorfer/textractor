@@ -78,7 +78,7 @@ export function DocumentViewer({ doc, spans, spanColorMap, onSpanCreated, fontSi
     const selectedText = doc.text.slice(start, end);
     if (!selectedText.trim()) return;
 
-    onSpanCreated({ id: randomId('span'), start, end, text: selectedText });
+    onSpanCreated({ id: randomId('span'), start, end, text: selectedText, source: 'human' });
     selection.removeAllRanges();
   };
 

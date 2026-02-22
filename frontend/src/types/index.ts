@@ -9,6 +9,7 @@ export interface Span {
   start: number;
   end: number;
   text: string;
+  source: 'human' | 'model';
 }
 
 export interface ReasoningStep {
@@ -16,6 +17,7 @@ export interface ReasoningStep {
   concept: Concept;
   span_ids: string[];
   note?: string;
+  source: 'human' | 'model';
 }
 
 export interface DocumentAnnotation {
@@ -24,6 +26,7 @@ export interface DocumentAnnotation {
   evidence_span_ids: string[];
   reasoning_step_ids: string[];
   note?: string;
+  source: 'human' | 'model';
 }
 
 export interface AnnotationFile {
