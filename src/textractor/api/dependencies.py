@@ -27,7 +27,13 @@ def init_terminology(tsv_path: Optional[Path], snomed_dir: Optional[Path] = None
         snomed_dir: Optional path to SNOMED CT RF2 directory (data/terminology/SnomedCT)
     """
     global _terminology
-    _terminology = EnhancedTerminologyIndex()
+
+    # Use SQLite database if SNOMED directory exists
+    db_path = None
+    if snomed_dir and snomed_dir.exists():
+        db_path = snomed_dir.parent / "snomed.db"
+
+    _terminology = EnhancedTerminologyIndex(db_path=db_path)
 
     # Try to load SNOMED CT first (if directory exists)
     if snomed_dir and snomed_dir.exists():

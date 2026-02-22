@@ -79,9 +79,19 @@ Browser:    http://localhost:5173
 
 | File | Role |
 |---|---|
-| `snomed.py` | `SNOMEDSearch`: Uses inverted word index + rapidfuzz for scalable fuzzy search across 2.6M+ SNOMED descriptions. Pre-filters candidates before fuzzy matching. Supports RF2 Full or Snapshot formats. |
+| `snomed_sqlite.py` | `SNOMEDSearchSQLite`: **Preferred**. Uses SQLite FTS5 with trigram tokenization for persistent, memory-efficient full-text search. Database stored at `data/terminology/snomed.db`. Automatically built from RF2 files on first load. |
+| `snomed.py` | `SNOMEDSearch`: **Fallback**. In-memory search using inverted word index + rapidfuzz. Loads all 2.6M+ descriptions into RAM. Used if SQLite build fails. |
 
-The app automatically uses SNOMED CT search when RF2 files are present, otherwise falls back to TSV terminology if provided via `TEXTRACTOR_TERMINOLOGY_PATH`.
+**Terminology loading priority:**
+1. **SQLite FTS5** (preferred): If `data/terminology/SnomedCT/` exists, uses or builds `data/terminology/snomed.db` with persistent FTS5 index
+2. **In-memory SNOMED**: Falls back to loading all descriptions into memory if SQLite unavailable
+3. **TSV fallback**: If SNOMED not found and `TEXTRACTOR_TERMINOLOGY_PATH` is set, loads simple TSV file
+
+**SQLite benefits:**
+- **Persistent storage**: Database built once, instant startup on subsequent runs
+- **Low memory footprint**: ~50MB RAM vs ~500MB for in-memory
+- **Fast full-text search**: FTS5 trigram tokenization enables substring matching
+- **Custom ranking**: Same multi-factor scoring as in-memory (exact match, prefix, word boundary, position)
 
 ### Frontend (`frontend/src/`)
 
@@ -143,9 +153,4 @@ code	display	system
 | `TEXTRACTOR_DOC_ROOT` | `./data/documents` | Directory scanned recursively for `*.json` document files |
 | `TEXTRACTOR_TERMINOLOGY_PATH` | (none) | TSV file loaded as fallback if SNOMED CT not available. Only used if `data/terminology/SnomedCT/` does not exist. |
 
-### Terminology Loading Priority
-
-1. **SNOMED CT RF2** (preferred): If `data/terminology/SnomedCT/` exists, loads 2.6M+ SNOMED descriptions with fuzzy search
-2. **TSV fallback**: If SNOMED not found and `TEXTRACTOR_TERMINOLOGY_PATH` is set, loads simple TSV file
-3. **Empty**: If neither is available, search returns empty results
 - When resolving github issues, always create a branch, then a PR
