@@ -45,6 +45,7 @@ export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMa
       concept: { code: '', display: '', system: 'SNOMED-CT' },
       span_ids: [],
       note: '',
+      source: 'human',
     };
     onChange([...steps, newStep]);
     setEditingId(id);
