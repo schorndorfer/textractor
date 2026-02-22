@@ -237,9 +237,8 @@ input { font-family: inherit; font-size: 13px; }
 .project-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  cursor: pointer;
+  gap: 8px;
+  padding: 10px 12px;
   background: var(--sidebar-shade-1);
   border-bottom: 1px solid var(--sidebar-border);
   font-weight: 600;
@@ -293,20 +292,22 @@ input { font-family: inherit; font-size: 13px; }
 }
 
 .project-action-btn {
-  padding: 2px 6px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  font-size: 16px;
-  color: var(--text-muted);
+  padding: 4px 8px;
+  background: var(--sidebar-surface);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 4px;
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--text);
   cursor: pointer;
   transition: all 0.15s;
+  line-height: 1;
 }
 
 .project-action-btn:hover {
-  background: var(--sidebar-surface);
-  border-color: var(--sidebar-border);
-  color: var(--text);
+  background: white;
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 .project-menu {
