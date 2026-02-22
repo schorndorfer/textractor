@@ -1,11 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { DocumentAnnotation, ReasoningStep, Span, TerminologyConcept } from '../types';
 import type { SpanColorMap } from '../App';
 import { ConceptSearch } from './ConceptSearch';
-
-function randomId(prefix: string) {
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
-}
+import { randomId, toggleInArray } from '../utils/helpers';
 
 interface Props {
   annotations: DocumentAnnotation[];
@@ -15,6 +12,7 @@ interface Props {
   docAnnColorMap: SpanColorMap;
   selectedAnnotationId: string | null;
   onAnnotationSelect: (annotationId: string | null) => void;
+  disabled?: boolean;
 }
 
 export function DocumentAnnotationList({
@@ -25,6 +23,7 @@ export function DocumentAnnotationList({
   docAnnColorMap,
   selectedAnnotationId,
   onAnnotationSelect,
+  disabled,
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftConcept, setDraftConcept] = useState<TerminologyConcept | null>(null);
@@ -32,7 +31,15 @@ export function DocumentAnnotationList({
   const [draftStepIds, setDraftStepIds] = useState<string[]>([]);
   const [draftNote, setDraftNote] = useState<string>('');
 
+  // Close any open edits when document becomes locked
+  useEffect(() => {
+    if (disabled && editingId) {
+      setEditingId(null);
+    }
+  }, [disabled, editingId]);
+
   const addAnnotation = () => {
+    if (disabled) return;
     const id = randomId('ann');
     const newAnn: DocumentAnnotation = {
       id,
@@ -81,7 +88,7 @@ export function DocumentAnnotationList({
   };
 
   const toggleId = (id: string, current: string[], setter: (ids: string[]) => void) => {
-    setter(current.includes(id) ? current.filter((x) => x !== id) : [...current, id]);
+    setter(toggleInArray(id, current));
   };
 
   return (
@@ -180,34 +187,38 @@ export function DocumentAnnotationList({
                 </span>
                 {ann.note && <div className="item-note">{ann.note}</div>}
               </div>
-              <div className="item-actions" onClick={(e) => e.stopPropagation()}>
-                <button
-                  onClick={() => {
-                    setEditingId(ann.id);
-                    setDraftConcept(ann.concept.code ? ann.concept : null);
-                    setDraftSpanIds(ann.evidence_span_ids);
-                    setDraftStepIds(ann.reasoning_step_ids);
-                    setDraftNote(ann.note || '');
-                  }}
-                  className="btn-small"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => deleteAnnotation(ann.id)}
-                  className="btn-small btn-danger"
-                >
-                  Delete
-                </button>
-              </div>
+              {!disabled && (
+                <div className="item-actions" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    onClick={() => {
+                      setEditingId(ann.id);
+                      setDraftConcept(ann.concept.code ? ann.concept : null);
+                      setDraftSpanIds(ann.evidence_span_ids);
+                      setDraftStepIds(ann.reasoning_step_ids);
+                      setDraftNote(ann.note || '');
+                    }}
+                    className="btn-small"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => deleteAnnotation(ann.id)}
+                    className="btn-small btn-danger"
+                  >
+                    Delete
+                  </button>
+                </div>
+              )}
             </div>
           )}
           </div>
         );
       })}
-      <button onClick={addAnnotation} className="btn-add">
-        + Add Document Annotation
-      </button>
+      {!disabled && (
+        <button onClick={addAnnotation} className="btn-add">
+          + Add Document Annotation
+        </button>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { ReasoningStep, Span, TerminologyConcept, DocumentAnnotation } from '../types';
 import type { SpanColorMap } from '../App';
 import { ConceptSearch } from './ConceptSearch';
@@ -14,13 +14,21 @@ interface Props {
   stepColorMap: SpanColorMap;
   selectedAnnotationId: string | null;
   annotations: DocumentAnnotation[];
+  disabled?: boolean;
 }
 
-export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMap, selectedAnnotationId, annotations }: Props) {
+export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMap, selectedAnnotationId, annotations, disabled }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftConcept, setDraftConcept] = useState<TerminologyConcept | null>(null);
   const [draftSpanIds, setDraftSpanIds] = useState<string[]>([]);
   const [draftNote, setDraftNote] = useState<string>('');
+
+  // Close any open edits when document becomes locked
+  useEffect(() => {
+    if (disabled && editingId) {
+      setEditingId(null);
+    }
+  }, [disabled, editingId]);
 
   // Compute which steps are selected (related to the selected document annotation)
   const selectedStepIds = useMemo(() => {
@@ -30,6 +38,7 @@ export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMa
   }, [selectedAnnotationId, annotations]);
 
   const addStep = () => {
+    if (disabled) return;
     const id = randomId('step');
     const newStep: ReasoningStep = {
       id,
@@ -147,30 +156,34 @@ export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMa
                   {step.note && <div className="item-note">{step.note}</div>}
                   <span className="item-meta">{step.span_ids.length} span(s) linked</span>
                 </div>
-                <div className="item-actions">
-                  <button
-                    onClick={() => {
-                      setEditingId(step.id);
-                      setDraftConcept(step.concept.code ? step.concept : null);
-                      setDraftSpanIds(step.span_ids);
-                      setDraftNote(step.note || '');
-                    }}
-                    className="btn-small"
-                  >
-                    Edit
-                  </button>
-                  <button onClick={() => deleteStep(step.id)} className="btn-small btn-danger">
-                    Delete
-                  </button>
-                </div>
+                {!disabled && (
+                  <div className="item-actions">
+                    <button
+                      onClick={() => {
+                        setEditingId(step.id);
+                        setDraftConcept(step.concept.code ? step.concept : null);
+                        setDraftSpanIds(step.span_ids);
+                        setDraftNote(step.note || '');
+                      }}
+                      className="btn-small"
+                    >
+                      Edit
+                    </button>
+                    <button onClick={() => deleteStep(step.id)} className="btn-small btn-danger">
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
         );
       })}
-      <button onClick={addStep} className="btn-add">
-        + Add Reasoning Step
-      </button>
+      {!disabled && (
+        <button onClick={addStep} className="btn-add">
+          + Add Reasoning Step
+        </button>
+      )}
     </div>
   );
 }

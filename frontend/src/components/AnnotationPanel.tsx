@@ -35,7 +35,10 @@ export function AnnotationPanel({
   collapsed,
   onSpanClick,
 }: Props) {
+  const isLocked = annotations.completed;
+
   const updateSpans = (spans: Span[]) => {
+    if (isLocked) return; // Prevent edits when completed
     // Cascade: remove deleted span IDs from steps and doc annotations
     const spanIds = new Set(spans.map((s) => s.id));
     const steps = annotations.reasoning_steps.map((step) => ({
@@ -50,6 +53,7 @@ export function AnnotationPanel({
   };
 
   const updateSteps = (steps: ReasoningStep[]) => {
+    if (isLocked) return; // Prevent edits when completed
     // Cascade: remove deleted step IDs from doc annotations
     const stepIds = new Set(steps.map((s) => s.id));
     const docAnns = annotations.document_annotations.map((ann) => ({
@@ -59,8 +63,10 @@ export function AnnotationPanel({
     onChange({ ...annotations, reasoning_steps: steps, document_annotations: docAnns });
   };
 
-  const updateDocAnns = (docAnns: DocumentAnnotation[]) =>
+  const updateDocAnns = (docAnns: DocumentAnnotation[]) => {
+    if (isLocked) return; // Prevent edits when completed
     onChange({ ...annotations, document_annotations: docAnns });
+  };
 
   const toggleCompleted = () => {
     onChange({ ...annotations, completed: !annotations.completed });
@@ -78,7 +84,9 @@ export function AnnotationPanel({
             ›
           </button>
         )}
-        <h2>Annotations</h2>
+        <h2>
+          Annotations {isLocked && <span className="lock-icon" title="Document is locked">🔒</span>}
+        </h2>
         <label className="completed-checkbox">
           <input
             type="checkbox"
@@ -87,15 +95,20 @@ export function AnnotationPanel({
           />
           <span>Completed</span>
         </label>
-        <button onClick={onRevert} disabled={!isDirty} className={`save-btn${isDirty ? ' dirty' : ''}`}>
+        <button onClick={onRevert} disabled={!isDirty || isLocked} className={`save-btn${isDirty ? ' dirty' : ''}`}>
           Revert
         </button>
       </div>
-      {saveError && <p className="save-error">{saveError}</p>}
+      {saveError && !isLocked && <p className="save-error">{saveError}</p>}
+      {isLocked && (
+        <div className="locked-notice">
+          <p>🔒 This document is locked. Uncheck "Completed" to make changes.</p>
+        </div>
+      )}
 
       <section className="panel-section">
         <h3>Spans ({annotations.spans.length})</h3>
-        <SpanList spans={annotations.spans} onChange={updateSpans} spanColorMap={spanColorMap} onSpanClick={onSpanClick} />
+        <SpanList spans={annotations.spans} onChange={updateSpans} spanColorMap={spanColorMap} onSpanClick={onSpanClick} disabled={isLocked} />
       </section>
 
       <section className="panel-section">
@@ -107,6 +120,7 @@ export function AnnotationPanel({
           stepColorMap={stepColorMap}
           selectedAnnotationId={selectedAnnotationId}
           annotations={annotations.document_annotations}
+          disabled={isLocked}
         />
       </section>
 
@@ -120,6 +134,7 @@ export function AnnotationPanel({
           docAnnColorMap={docAnnColorMap}
           selectedAnnotationId={selectedAnnotationId}
           onAnnotationSelect={onAnnotationSelect}
+          disabled={isLocked}
         />
       </section>
     </aside>

@@ -17,14 +17,10 @@ from .routers import terminology as terminology_router
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     doc_root = Path(os.environ.get("TEXTRACTOR_DOC_ROOT", "./data/documents"))
-    terminology_path_str = os.environ.get("TEXTRACTOR_TERMINOLOGY_PATH", "")
-    terminology_path = Path(terminology_path_str) if terminology_path_str else None
-
-    # Check for SNOMED CT RF2 directory
     snomed_dir = Path("./data/terminology/SnomedCT")
 
     init_store(doc_root)
-    init_terminology(tsv_path=terminology_path, snomed_dir=snomed_dir)
+    init_terminology(snomed_dir=snomed_dir)
     yield
 
 

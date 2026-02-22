@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, Query
 
 from ..dependencies import get_terminology
 from ..enhanced_terminology import EnhancedTerminologyIndex
@@ -11,30 +11,15 @@ router = APIRouter(prefix="/api/terminology", tags=["terminology"])
 
 @router.get("/search", response_model=list[TerminologyConcept])
 def search_concepts(
-    q: str = Query(default="", description="Substring search query"),
+    q: str = Query(default="", description="SNOMED CT search query"),
     limit: int = Query(default=20, ge=1, le=200),
     index: EnhancedTerminologyIndex = Depends(get_terminology),
 ) -> list[TerminologyConcept]:
+    """Search SNOMED CT terminology using full-text search."""
     return index.search(q, limit=limit)
 
 
 @router.get("/info", response_model=TerminologyInfo)
 def terminology_info(index: EnhancedTerminologyIndex = Depends(get_terminology)) -> TerminologyInfo:
-    return index.info()
-
-
-@router.post("/upload", response_model=TerminologyInfo)
-async def upload_terminology(
-    file: UploadFile = File(...),
-    index: EnhancedTerminologyIndex = Depends(get_terminology),
-) -> TerminologyInfo:
-    if not (file.filename or "").endswith(".tsv"):
-        raise HTTPException(status_code=400, detail="Only .tsv files are accepted")
-
-    content = await file.read()
-    try:
-        index.load_from_bytes(content, file.filename or "uploaded.tsv")
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-
+    """Get information about the loaded terminology."""
     return index.info()
