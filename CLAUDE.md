@@ -64,7 +64,9 @@ Browser:    http://localhost:5173
 | `dependencies.py` | Module-level singletons (`_store`, `_terminology`) initialized in the FastAPI lifespan. Loads SNOMED from `data/terminology/SnomedCT/` if available. |
 | `routers/documents.py` | `GET /api/documents`, `POST /api/documents/upload`, `GET /api/documents/{id}`, `PATCH /api/documents/{id}/metadata`, `DELETE /api/documents/{id}` |
 | `routers/annotations.py` | `GET/PUT /api/documents/{id}/annotations` — PUT validates referential integrity (span/step IDs must exist) |
+| `routers/preannotate.py` | `POST /api/documents/{id}/preannotate` — generates AI annotations using Claude, validates spans via rapidfuzz, returns AnnotationFile without auto-save |
 | `routers/terminology.py` | `GET /api/terminology/search?q=`, `GET /api/terminology/info`. Provides SNOMED CT full-text search. |
+| `llm.py` | Two-stage LLM pipeline: `extract_medical_terms` (Stage 1), `generate_annotations_raw` (Stage 2), `validate_and_convert_annotations` (span recovery + AnnotationFile conversion) |
 | `main.py` | App factory: wires routers, CORS, lifespan, optional `StaticFiles` mount. Initializes SNOMED terminology on startup. |
 
 ### SNOMED CT Terminology (`src/textractor/terminology/`)
@@ -134,6 +136,9 @@ Annotation output (`{doc_id}.ann.json`):
 | Variable | Default | Description |
 |---|---|---|
 | `TEXTRACTOR_DOC_ROOT` | `./data/documents` | Directory scanned recursively for `*.json` document files |
+| `ANTHROPIC_API_KEY` | (required for pre-annotation) | Anthropic API key for Claude AI access |
+| `TEXTRACTOR_LLM_MODEL` | `claude-sonnet-4-5` | Model name for annotation generation |
+| `TEXTRACTOR_FUZZY_THRESHOLD` | `90` | Minimum similarity (0-100) for span offset recovery |
 
 **SNOMED CT Setup:**
 - Place SNOMED CT RF2 files in `data/terminology/SnomedCT/`
