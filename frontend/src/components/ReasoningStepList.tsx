@@ -56,10 +56,28 @@ export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMa
 
   const commitEdit = (stepId: string) => {
     if (!draftConcept) return;
+
     onChange(
-      steps.map((s) =>
-        s.id === stepId ? { ...s, concept: draftConcept, span_ids: draftSpanIds, note: draftNote } : s
-      )
+      steps.map((s) => {
+        if (s.id !== stepId) return s;
+
+        const conceptChanged =
+          s.concept.code !== draftConcept.code ||
+          s.concept.display !== draftConcept.display;
+
+        const spanIdsChanged =
+          JSON.stringify([...s.span_ids].sort()) !== JSON.stringify([...draftSpanIds].sort());
+
+        const substantiveEdit = conceptChanged || spanIdsChanged;
+
+        return {
+          ...s,
+          concept: draftConcept,
+          span_ids: draftSpanIds,
+          note: draftNote,
+          source: substantiveEdit ? 'human' : s.source,
+        };
+      })
     );
     setEditingId(null);
   };
