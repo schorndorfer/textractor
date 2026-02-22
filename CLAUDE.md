@@ -65,22 +65,23 @@ Browser:    http://localhost:5173
 |---|---|
 | `models.py` | All Pydantic models: `Span`, `ReasoningStep` (with optional `note` field), `DocumentAnnotation`, `AnnotationFile`, `Document`, `DocumentSummary`, `TerminologyConcept`, `TerminologyInfo` |
 | `storage.py` | `DocumentStore`: recursively scans `TEXTRACTOR_DOC_ROOT` for `*.json` docs; companion annotations stored flat as `{doc_id}.ann.json` in root |
-| `terminology.py` | `TerminologyIndex`: loads TSV at startup, in-memory case-insensitive substring search |
-| `dependencies.py` | Module-level singletons (`_store`, `_terminology`) initialized in the FastAPI lifespan; exposed via `get_store()` / `get_terminology()` for `Depends()` injection |
+| `terminology.py` | `TerminologyIndex`: loads TSV at startup, in-memory case-insensitive substring search (legacy fallback) |
+| `enhanced_terminology.py` | `EnhancedTerminologyIndex`: Wrapper that uses SNOMED CT RF2 when available, falls back to TSV. Converts SNOMED results to `TerminologyConcept` format. |
+| `dependencies.py` | Module-level singletons (`_store`, `_terminology`) initialized in the FastAPI lifespan. Tries loading SNOMED from `data/terminology/SnomedCT/`, falls back to TSV if `TEXTRACTOR_TERMINOLOGY_PATH` is set. |
 | `routers/documents.py` | `GET /api/documents`, `POST /api/documents/upload`, `GET /api/documents/{id}`, `PATCH /api/documents/{id}/metadata`, `DELETE /api/documents/{id}` |
 | `routers/annotations.py` | `GET/PUT /api/documents/{id}/annotations` — PUT validates referential integrity (span/step IDs must exist) |
-| `routers/terminology.py` | `GET /api/terminology/search?q=`, `GET /api/terminology/info`, `POST /api/terminology/upload` |
-| `main.py` | App factory: wires routers, CORS, lifespan, optional `StaticFiles` mount |
+| `routers/terminology.py` | `GET /api/terminology/search?q=`, `GET /api/terminology/info`, `POST /api/terminology/upload`. Now uses `EnhancedTerminologyIndex` which provides SNOMED search. |
+| `main.py` | App factory: wires routers, CORS, lifespan, optional `StaticFiles` mount. Initializes terminology with SNOMED path. |
 
 ### Enhanced Terminology (`src/textractor/terminology/`)
 
-**Note:** This package is under development for more sophisticated SNOMED CT search.
+**SNOMED CT integration is now active** - place SNOMED RF2 files in `data/terminology/SnomedCT/` and they will be automatically loaded at startup.
 
 | File | Role |
 |---|---|
-| `snomed.py` | `SNOMEDSearch`: Uses inverted word index + rapidfuzz for scalable fuzzy search across 800K+ SNOMED descriptions. Pre-filters candidates before fuzzy matching. |
+| `snomed.py` | `SNOMEDSearch`: Uses inverted word index + rapidfuzz for scalable fuzzy search across 2.6M+ SNOMED descriptions. Pre-filters candidates before fuzzy matching. Supports RF2 Full or Snapshot formats. |
 
-Place SNOMED RF2 release files in `data/terminology/` for use with this module.
+The app automatically uses SNOMED CT search when RF2 files are present, otherwise falls back to TSV terminology if provided via `TEXTRACTOR_TERMINOLOGY_PATH`.
 
 ### Frontend (`frontend/src/`)
 
@@ -140,4 +141,10 @@ code	display	system
 | Variable | Default | Description |
 |---|---|---|
 | `TEXTRACTOR_DOC_ROOT` | `./data/documents` | Directory scanned recursively for `*.json` document files |
-| `TEXTRACTOR_TERMINOLOGY_PATH` | (none) | TSV file loaded into `TerminologyIndex` at startup |
+| `TEXTRACTOR_TERMINOLOGY_PATH` | (none) | TSV file loaded as fallback if SNOMED CT not available. Only used if `data/terminology/SnomedCT/` does not exist. |
+
+### Terminology Loading Priority
+
+1. **SNOMED CT RF2** (preferred): If `data/terminology/SnomedCT/` exists, loads 2.6M+ SNOMED descriptions with fuzzy search
+2. **TSV fallback**: If SNOMED not found and `TEXTRACTOR_TERMINOLOGY_PATH` is set, loads simple TSV file
+3. **Empty**: If neither is available, search returns empty results
