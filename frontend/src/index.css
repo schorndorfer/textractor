@@ -1334,3 +1334,18 @@ input { font-family: inherit; font-size: 13px; }
   background: linear-gradient(to bottom, var(--border) 0%, var(--border) 50%, transparent 50%, transparent 100%);
   background-size: 100% 6px;
 }
+
+/* ── AI badge (model-generated items) ──────────────────────────────────── */
+.ai-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: #9333ea;
+  border-radius: 50%;
+  font-size: 12px;
+  margin-right: 6px;
+  flex-shrink: 0;
+  vertical-align: middle;
+}

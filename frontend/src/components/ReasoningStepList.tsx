@@ -45,6 +45,7 @@ export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMa
       concept: { code: '', display: '', system: 'SNOMED-CT' },
       span_ids: [],
       note: '',
+      source: 'human',
     };
     onChange([...steps, newStep]);
     setEditingId(id);
@@ -55,10 +56,28 @@ export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMa
 
   const commitEdit = (stepId: string) => {
     if (!draftConcept) return;
+
     onChange(
-      steps.map((s) =>
-        s.id === stepId ? { ...s, concept: draftConcept, span_ids: draftSpanIds, note: draftNote } : s
-      )
+      steps.map((s) => {
+        if (s.id !== stepId) return s;
+
+        const conceptChanged =
+          s.concept.code !== draftConcept.code ||
+          s.concept.display !== draftConcept.display;
+
+        const spanIdsChanged =
+          JSON.stringify([...s.span_ids].sort()) !== JSON.stringify([...draftSpanIds].sort());
+
+        const substantiveEdit = conceptChanged || spanIdsChanged;
+
+        return {
+          ...s,
+          concept: draftConcept,
+          span_ids: draftSpanIds,
+          note: draftNote,
+          source: substantiveEdit ? 'human' : s.source,
+        };
+      })
     );
     setEditingId(null);
   };
@@ -148,6 +167,9 @@ export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMa
                 )}
                 <div className="item-info">
                   <span className="concept-label">
+                    {step.source === 'model' && (
+                      <span className="ai-badge" title="Model-generated">✨</span>
+                    )}
                     {step.concept.display || '(no concept)'}{' '}
                     {step.concept.code && (
                       <span className="concept-code">[{step.concept.code}]</span>
