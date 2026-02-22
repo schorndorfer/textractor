@@ -1,6 +1,7 @@
 """SQLite-based SNOMED CT search with FTS5 full-text search."""
 import sqlite3
 import csv
+import threading
 from pathlib import Path
 from typing import Optional
 
@@ -25,14 +26,27 @@ class SNOMEDSearchSQLite:
         """
         self.db_path = db_path
         self.conn: Optional[sqlite3.Connection] = None
+        self._lock = threading.Lock()  # Ensure thread-safe access
 
     def _get_connection(self) -> sqlite3.Connection:
-        """Get or create database connection."""
+        """
+        Get or create database connection.
+
+        Uses check_same_thread=False to allow cross-thread access.
+        This is safe for our use case since we only do read operations
+        after initial database build.
+        """
         if self.conn is None:
             if self.db_path:
-                self.conn = sqlite3.connect(str(self.db_path))
+                self.conn = sqlite3.connect(
+                    str(self.db_path),
+                    check_same_thread=False
+                )
             else:
-                self.conn = sqlite3.connect(":memory:")
+                self.conn = sqlite3.connect(
+                    ":memory:",
+                    check_same_thread=False
+                )
         return self.conn
 
     def build_index(self, rf2_dir: Path) -> int:
@@ -106,14 +120,15 @@ class SNOMEDSearchSQLite:
 
     def is_indexed(self) -> bool:
         """Check if the database has been indexed."""
-        try:
-            conn = self._get_connection()
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM snomed_fts")
-            count = cursor.fetchone()[0]
-            return count > 0
-        except sqlite3.OperationalError:
-            return False
+        with self._lock:
+            try:
+                conn = self._get_connection()
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM snomed_fts")
+                count = cursor.fetchone()[0]
+                return count > 0
+            except sqlite3.OperationalError:
+                return False
 
     def _score_match(self, query: str, term: str, base_score: float) -> float:
         """
@@ -170,47 +185,49 @@ class SNOMEDSearchSQLite:
         if not query.strip():
             return []
 
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        with self._lock:
+            conn = self._get_connection()
+            cursor = conn.cursor()
 
-        # FTS5 MATCH query - rank is negative (higher is better match)
-        # We get more results than needed for re-ranking
-        cursor.execute("""
-            SELECT concept_id, term, term_type, rank
-            FROM snomed_fts
-            WHERE snomed_fts MATCH ?
-            ORDER BY rank
-            LIMIT ?
-        """, (query, limit * 3))
+            # FTS5 MATCH query - rank is negative (higher is better match)
+            # We get more results than needed for re-ranking
+            cursor.execute("""
+                SELECT concept_id, term, term_type, rank
+                FROM snomed_fts
+                WHERE snomed_fts MATCH ?
+                ORDER BY rank
+                LIMIT ?
+            """, (query, limit * 3))
 
-        results = cursor.fetchall()
+            results = cursor.fetchall()
 
-        # Re-rank with custom scoring
-        scored_results = []
-        for concept_id, term, term_type, fts_rank in results:
-            # Convert FTS5 rank (negative) to positive score
-            # FTS rank is typically between -1 and -30
-            base_score = abs(fts_rank)
-            custom_score = self._score_match(query, term, base_score)
+            # Re-rank with custom scoring
+            scored_results = []
+            for concept_id, term, term_type, fts_rank in results:
+                # Convert FTS5 rank (negative) to positive score
+                # FTS rank is typically between -1 and -30
+                base_score = abs(fts_rank)
+                custom_score = self._score_match(query, term, base_score)
 
-            scored_results.append({
-                "concept_id": concept_id,
-                "term": term,
-                "type": term_type,
-                "score": round(custom_score, 1)
-            })
+                scored_results.append({
+                    "concept_id": concept_id,
+                    "term": term,
+                    "type": term_type,
+                    "score": round(custom_score, 1)
+                })
 
-        # Sort by custom score (descending)
-        scored_results.sort(key=lambda x: x["score"], reverse=True)
+            # Sort by custom score (descending)
+            scored_results.sort(key=lambda x: x["score"], reverse=True)
 
-        # Return top results
-        return scored_results[:limit]
+            # Return top results
+            return scored_results[:limit]
 
     def close(self):
         """Close database connection."""
-        if self.conn:
-            self.conn.close()
-            self.conn = None
+        with self._lock:
+            if self.conn:
+                self.conn.close()
+                self.conn = None
 
     def __del__(self):
         """Cleanup on deletion."""
