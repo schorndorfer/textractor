@@ -50,31 +50,26 @@ The `metadata` field is optional and can contain any key-value pairs. Place thes
 
 ---
 
-## Terminology File
+## SNOMED CT Terminology
 
-Load a concept vocabulary via a tab-separated file with a header row:
+Textractor uses **SNOMED CT** for clinical terminology search via SQLite FTS5 (full-text search).
 
-```
-code	display	system
-57054005	Acute myocardial infarction	SNOMED-CT
-194828000	Angina pectoris	SNOMED-CT
-44054006	Type 2 diabetes mellitus	SNOMED-CT
-38341003	Hypertensive disorder	SNOMED-CT
-55822004	Hyperlipidemia	SNOMED-CT
-13213009	Congenital heart disease	SNOMED-CT
-```
+### Setup
 
-Pass this file at startup:
+1. Download SNOMED CT RF2 files
+2. Place them in `data/terminology/SnomedCT/`
+3. On first startup, Textractor automatically builds a searchable SQLite database at `data/terminology/snomed.db`
+4. Subsequent startups reuse the existing database (instant load)
 
-```bash
-TEXTRACTOR_DOC_ROOT=./data/documents \
-  TEXTRACTOR_TERMINOLOGY_PATH=./data/concepts.tsv \
-  uv run textractor
-```
+### Features
 
-You can also upload or replace the terminology at runtime via the UI or the API (`POST /api/terminology/upload`).
+- **Persistent storage**: Database built once, ~50MB RAM footprint
+- **Fast full-text search**: FTS5 with trigram tokenization for substring matching
+- **2.6M+ SNOMED descriptions**: Comprehensive clinical vocabulary
+- **Smart ranking**: Multi-factor scoring (exact match, prefix, word boundary, position)
+- **Deduplication**: One result per concept ID
 
-For more sophisticated terminology sources (e.g., full SNOMED CT releases), place the source files in `data/terminology/` for use with the enhanced terminology search module.
+If SNOMED CT is not available, the terminology search will be empty.
 
 ---
 
@@ -93,15 +88,21 @@ Text spans  →  Reasoning steps  →  Document annotations
 
 **3. Create document annotations** — Search for the final code (e.g. "Acute myocardial infarction"), link it to evidence spans and the reasoning steps that led to it. Click on a document annotation to view its interactive evidence graph.
 
-Hit **Save** to write the annotation file to disk.
+Annotations are **automatically saved** as you work (2-second debounce). Click **Revert** to discard unsaved changes.
 
 ### UI Features
 
+- **Auto-Save** — Annotations save automatically after you stop editing
+- **Document Locking** — Mark documents as "Completed" to prevent accidental modifications
+  - Lock icon (🔒) displayed when completed
+  - All editing disabled with clear visual feedback
+  - Uncheck "Completed" to unlock and resume editing
 - **Project Organization** — Group documents into collapsible projects in the left sidebar
 - **Interactive Graph** — Visualize document annotations with their linked reasoning steps and evidence spans
 - **Annotation Highlighting** — Click document annotations to highlight and filter related evidence
 - **Resizable Panels** — Drag panel borders to adjust workspace layout
 - **Font Size Control** — Use +/- buttons to adjust document text size
+- **Filter & Search** — Filter by annotated/unannotated/completed status
 
 ---
 
@@ -112,6 +113,7 @@ Each document gets a companion `.ann.json` file saved alongside it:
 ```json
 {
   "doc_id": "note_001",
+  "completed": false,
   "spans": [
     {
       "id": "span_a3f2b1c0",
@@ -162,7 +164,8 @@ Each document gets a companion `.ann.json` file saved alongside it:
       ],
       "reasoning_step_ids": [
         "step_7b3f9d12"
-      ]
+      ],
+      "note": ""
     }
   ]
 }
@@ -182,10 +185,16 @@ The backend exposes a REST API documented interactively at `http://localhost:800
 | `PATCH` | `/api/documents/{id}/metadata` | Update document metadata (e.g., project) |
 | `DELETE` | `/api/documents/{id}` | Delete a document and its annotations |
 | `GET` | `/api/documents/{id}/annotations` | Get current annotations (empty structure if none) |
-| `PUT` | `/api/documents/{id}/annotations` | Save annotations (validates all ID references) |
-| `GET` | `/api/terminology/search?q=&limit=` | Search concepts by substring |
-| `GET` | `/api/terminology/info` | Terminology load status and count |
-| `POST` | `/api/terminology/upload` | Replace the loaded terminology with a new TSV |
+| `PUT` | `/api/documents/{id}/annotations` | Save annotations (validates all ID references, enforces locks) |
+| `GET` | `/api/terminology/search?q=&limit=` | Search SNOMED CT concepts by full-text query |
+| `GET` | `/api/terminology/info` | Terminology load status and concept count |
+
+### Document Locking
+
+The `PUT /api/documents/{id}/annotations` endpoint enforces document locking:
+- Returns `403 Forbidden` if document is marked as completed
+- Allows unchecking the `completed` flag to unlock
+- Prevents accidental modifications to finalized annotations
 
 ### Example: batch-upload documents via API
 
@@ -212,19 +221,33 @@ textractor/
 │   ├── api/              # FastAPI backend
 │   │   ├── models.py     # Pydantic data models
 │   │   ├── storage.py    # Document store
-│   │   ├── terminology.py # Basic terminology index
+│   │   ├── enhanced_terminology.py # SNOMED CT search wrapper
+│   │   ├── dependencies.py # Dependency injection
 │   │   ├── routers/      # API endpoints
+│   │   │   ├── documents.py
+│   │   │   ├── annotations.py
+│   │   │   └── terminology.py
 │   │   └── main.py       # App factory
-│   └── terminology/      # Enhanced terminology search (upcoming)
+│   └── terminology/      # SNOMED CT SQLite search
+│       └── snomed.py     # FTS5 implementation
 ├── frontend/             # React + TypeScript UI
 │   ├── src/
 │   │   ├── components/   # UI components
+│   │   ├── hooks/        # Custom React hooks
+│   │   ├── utils/        # Shared utilities
 │   │   ├── api/          # API client
 │   │   └── types/        # TypeScript interfaces
 │   └── dist/             # Production build output
+├── tests/                # Backend tests (pytest)
+│   ├── test_annotations.py     # Annotation API tests
+│   ├── test_snomed.py          # SNOMED search tests
+│   ├── test_deduplication.py   # Search result tests
+│   └── test_terminology_integration.py
 └── data/
     ├── documents/        # Document storage (.json + .ann.json)
-    └── terminology/      # Terminology source files
+    └── terminology/      # SNOMED CT RF2 files
+        ├── SnomedCT/     # Place RF2 files here
+        └── snomed.db     # Auto-generated SQLite database
 ```
 
 ---
@@ -233,8 +256,36 @@ textractor/
 
 | Environment Variable | Default | Description |
 |---|---|---|
-| `TEXTRACTOR_DOC_ROOT` | `./data/documents` | Directory scanned for `*.json` documents |
-| `TEXTRACTOR_TERMINOLOGY_PATH` | *(none)* | TSV terminology file loaded at startup |
+| `TEXTRACTOR_DOC_ROOT` | `./data/documents` | Directory scanned recursively for `*.json` documents |
+
+SNOMED CT is automatically loaded from `data/terminology/SnomedCT/` if present.
+
+---
+
+## Testing
+
+```bash
+# Install test dependencies
+uv sync --extra dev
+
+# Run all tests
+uv run pytest
+
+# Run specific test file
+uv run pytest tests/test_annotations.py
+
+# Run with verbose output
+uv run pytest -v
+
+# Run tests matching a pattern
+uv run pytest -k "lock"
+```
+
+**Test Coverage:**
+- Annotation API (create, edit, lock/unlock)
+- SNOMED CT search (build index, search, ranking, persistence)
+- Document locking enforcement
+- Referential integrity validation
 
 ---
 
@@ -245,9 +296,27 @@ textractor/
 cd frontend && npm run build && cd ..
 
 # Run — FastAPI serves the React app at /
-TEXTRACTOR_DOC_ROOT=/path/to/documents \
-  TEXTRACTOR_TERMINOLOGY_PATH=/path/to/concepts.tsv \
-  uv run textractor
+TEXTRACTOR_DOC_ROOT=/path/to/documents uv run textractor
 ```
 
 The app is then available at `http://localhost:8000`.
+
+For SNOMED CT support, ensure RF2 files are in `data/terminology/SnomedCT/` before first startup.
+
+---
+
+## Recent Features
+
+- ✅ **SNOMED CT Integration** - Full-text search across 2.6M+ clinical concepts
+- ✅ **SQLite FTS5** - Persistent, low-memory terminology search
+- ✅ **Auto-Save** - Annotations save automatically with revert capability
+- ✅ **Document Locking** - Prevent edits to completed documents
+- ✅ **Project Organization** - Group and filter documents by project
+- ✅ **Interactive Graph** - Visualize annotation relationships
+- ✅ **Enhanced UX** - Resizable panels, font controls, smart highlighting
+
+---
+
+## License
+
+See LICENSE file.

@@ -163,10 +163,7 @@ export function DocumentAnnotationList({
           ) : (
             <div
               className="item-row"
-              onClick={() => {
-                console.log('Clicking annotation:', ann.id, ann.concept.display);
-                onAnnotationSelect(ann.id);
-              }}
+              onClick={() => onAnnotationSelect(ann.id)}
             >
               {color && (
                 <span

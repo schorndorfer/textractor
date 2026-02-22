@@ -188,11 +188,8 @@ export function App() {
   };
 
   const handleAnnotationSelect = (annotationId: string | null) => {
-    console.log('handleAnnotationSelect called with:', annotationId);
-    console.log('Previous selection:', selectedAnnotationId);
     setSelectedAnnotationId((prev) => {
       const newValue = prev === annotationId ? null : annotationId;
-      console.log('New selection will be:', newValue);
       // Auto-switch to graph tab when annotation is selected
       if (newValue !== null) {
         setActiveTab('graph');
