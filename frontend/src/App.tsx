@@ -26,6 +26,11 @@ export function App() {
   const [focusedSpanId, setFocusedSpanId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'document' | 'graph'>('document');
 
+  // Pre-annotation state
+  const [isPreAnnotated, setIsPreAnnotated] = useState(false);
+  const [preAnnotateLoading, setPreAnnotateLoading] = useState(false);
+  const [preAnnotateError, setPreAnnotateError] = useState<string | null>(null);
+
   // Refs for auto-save
   const autoSaveTimeoutRef = useRef<number | null>(null);
   const isSavingRef = useRef(false);
