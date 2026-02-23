@@ -14,10 +14,11 @@ interface Props {
   stepColorMap: SpanColorMap;
   selectedAnnotationId: string | null;
   annotations: DocumentAnnotation[];
+  onAnnotationSelect: (annotationId: string | null) => void;
   disabled?: boolean;
 }
 
-export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMap, selectedAnnotationId, annotations, disabled }: Props) {
+export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMap, selectedAnnotationId, annotations, onAnnotationSelect, disabled }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftConcept, setDraftConcept] = useState<TerminologyConcept | null>(null);
   const [draftSpanIds, setDraftSpanIds] = useState<string[]>([]);
@@ -102,6 +103,25 @@ export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMa
     );
   };
 
+  const handleStepClick = (stepId: string) => {
+    if (disabled) return;
+
+    // Find document annotation(s) that reference this step
+    const parentAnns = annotations.filter((ann) =>
+      ann.reasoning_step_ids.includes(stepId)
+    );
+
+    if (parentAnns.length === 0) return; // No parent annotation
+
+    // If current selection already includes this step, keep it selected
+    if (selectedAnnotationId && parentAnns.some((ann) => ann.id === selectedAnnotationId)) {
+      return; // Already showing this step in graph
+    }
+
+    // Select the first parent annotation
+    onAnnotationSelect(parentAnns[0].id);
+  };
+
   return (
     <div className="item-list">
       {steps.map((step) => {
@@ -157,7 +177,7 @@ export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMa
                 </div>
               </div>
             ) : (
-              <div className="item-row">
+              <div className="item-row" onClick={() => handleStepClick(step.id)}>
                 {color && (
                   <span
                     className="color-indicator"
