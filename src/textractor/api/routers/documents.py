@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import json
 import zipfile
+from urllib.parse import quote
 
 import logging
 
@@ -128,6 +129,8 @@ def export_project(
             if doc:
                 doc_json = doc.model_dump_json(indent=2)
                 zf.writestr(f"{doc.id}.json", doc_json)
+            else:
+                logger.warning(f"Failed to load document {doc_summary.id} for export")
 
             # Add annotations JSON if they exist
             annotations = ann_store.get_annotations(doc_summary.id, annotator=annotator)
@@ -137,12 +140,13 @@ def export_project(
 
     # Prepare response
     zip_buffer.seek(0)
-    filename = f"{project or 'all-documents'}.zip"
+    filename_safe = quote(project or 'all-documents', safe='')
+    filename = f"{filename_safe}.zip"
 
     return StreamingResponse(
-        io.BytesIO(zip_buffer.read()),
+        zip_buffer,
         media_type="application/zip",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )
 
 
