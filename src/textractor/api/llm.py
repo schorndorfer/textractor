@@ -170,7 +170,11 @@ def generate_annotations_raw(
                             "properties": {
                                 "concept_code": {"type": "string"},
                                 "concept_display": {"type": "string"},
-                                "span_indices": {"type": "array", "items": {"type": "integer"}},
+                                "span_indices": {
+                                    "type": "array",
+                                    "items": {"type": "integer"},
+                                    "minItems": 1,
+                                },
                                 "note": {"type": "string"},
                             },
                             "required": ["concept_code", "concept_display", "span_indices"],
@@ -183,8 +187,11 @@ def generate_annotations_raw(
                             "properties": {
                                 "concept_code": {"type": "string"},
                                 "concept_display": {"type": "string"},
-                                "evidence_span_indices": {"type": "array", "items": {"type": "integer"}},
-                                "reasoning_step_indices": {"type": "array", "items": {"type": "integer"}},
+                                "reasoning_step_indices": {
+                                    "type": "array",
+                                    "items": {"type": "integer"},
+                                    "minItems": 1,
+                                },
                                 "note": {"type": "string"},
                                 "category": {
                                     "type": "string",
@@ -196,7 +203,7 @@ def generate_annotations_raw(
                                     ],
                                 },
                             },
-                            "required": ["concept_code", "concept_display", "category"],
+                            "required": ["concept_code", "concept_display", "category", "reasoning_step_indices"],
                         },
                     },
                 },
@@ -218,8 +225,13 @@ Instructions:
 2. Create reasoning steps linking spans to SNOMED concepts
 3. Create document-level annotations for the primary diagnoses/findings
 4. ONLY use SNOMED codes from the provided list above
-5. Use span_indices and reasoning_step_indices to reference items by array position (0-indexed)
-6. Categorize each document annotation:
+5. STRICT HIERARCHY - follow this progression:
+   - Spans (text evidence) → Reasoning Steps (intermediate concepts) → Document Annotations (final findings)
+   - Every reasoning step MUST reference at least 1 span
+   - Every document annotation MUST reference at least 1 reasoning step
+   - Document annotations should NOT directly reference spans - only through reasoning steps
+6. Use span_indices and reasoning_step_indices to reference items by array position (0-indexed)
+7. Categorize each document annotation:
    - problem/diagnosis/finding: diseases, conditions, disorders
    - symptom/sign: patient complaints, clinical observations
    - procedure: therapeutic/diagnostic procedures
@@ -232,7 +244,7 @@ Instructions:
    - social_history: smoking, alcohol (NON-clinical)
    - temporal: dates, times (NON-clinical)
    - other: anything else
-7. Be accurate - only annotate what is clearly stated in the text
+8. Be accurate - only annotate what is clearly stated in the text
 
 Return structured annotations following the tool schema."""
 
