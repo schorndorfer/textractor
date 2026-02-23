@@ -6,6 +6,34 @@ Built with FastAPI + React.
 
 ---
 
+## 🐳 Quick Start with Docker
+
+```bash
+# One-time setup
+cp .env.example .env
+# Edit .env with your ANTHROPIC_API_KEY
+
+# Start application
+docker compose up -d
+
+# Access at http://localhost:8000
+```
+
+See [Docker Deployment Guide](docs/DOCKER.md) for comprehensive instructions.
+
+## Prerequisites
+
+**Native Installation:**
+- Python 3.10+
+- Node.js 20+
+- uv package manager
+
+**Docker (Recommended):**
+- Docker 20.10+
+- Docker Compose 2.0+
+
+---
+
 ## Quickstart
 
 ### Single-Command Setup (Recommended)
