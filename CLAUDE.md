@@ -91,6 +91,31 @@ Pre-annotation automatically filters document-level annotations to clinical conc
 
 Filtering happens post-generation with cascade deletion of orphaned reasoning steps and spans. Check backend logs for filtering statistics.
 
+### Hierarchy Enforcement
+
+Pre-annotation enforces strict hierarchical progression:
+
+**Strict hierarchy flow:**
+- Spans (text evidence) → Reasoning Steps (intermediate concepts) → Document Annotations (final findings)
+- Every reasoning step must reference ≥1 span
+- Every document annotation must reference ≥1 reasoning step
+- No direct span links from document annotations (`evidence_span_ids` is empty for AI)
+
+**Validation:**
+- LLM tool schema prevents direct span links (`evidence_span_indices` removed from schema)
+- Schema enforces `minItems: 1` on `span_indices` and `reasoning_step_indices`
+- Post-processing filters violations in `validate_and_convert_annotations()`
+- Reasoning steps with 0 spans are filtered
+- Document annotations with 0 reasoning steps are filtered
+- Detailed logging shows what was filtered ("Hierarchy validation: filtered ...")
+
+**Human flexibility:**
+- Hierarchy rules only apply to AI-generated annotations (`source='model'`)
+- Human annotations retain full flexibility including direct span links
+- Existing annotations with direct links continue to work
+
+Check backend logs for "Hierarchy validation:" output to see filtering statistics.
+
 ### SNOMED CT Terminology (`src/textractor/terminology/`)
 
 **SNOMED CT integration** - place SNOMED RF2 files in `data/terminology/SnomedCT/` and they will be automatically loaded at startup.
