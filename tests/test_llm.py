@@ -370,6 +370,37 @@ def test_filter_document_annotation_no_steps():
     assert len(result.document_annotations) == 0
 
 
+def test_filter_document_annotation_direct_spans():
+    """Test that document annotations with evidence_span_ids are filtered."""
+    from textractor.api.llm import validate_and_convert_annotations
+
+    raw_data = {
+        "spans": [{"start": 0, "end": 10, "text": "chest pain"}],
+        "reasoning_steps": [
+            {
+                "concept_code": "29857009",
+                "concept_display": "Chest pain",
+                "span_indices": [0],
+            },
+        ],
+        "document_annotations": [
+            {
+                "concept_code": "29857009",
+                "concept_display": "Chest pain",
+                "evidence_span_indices": [0],  # Invalid - direct span links
+                "reasoning_step_indices": [0],
+                "category": "symptom",
+            },
+        ],
+    }
+
+    doc_text = "chest pain"
+    result = validate_and_convert_annotations(raw_data, doc_text, "test_doc")
+
+    # Document annotation should be filtered (has direct span links)
+    assert len(result.document_annotations) == 0
+
+
 def test_filter_missing_category_treated_as_unknown():
     """Test that annotations without category are filtered out."""
     from textractor.api.llm import validate_and_convert_annotations
