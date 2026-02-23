@@ -1,4 +1,4 @@
-.PHONY: build run dev clean install help
+.PHONY: build run dev clean install help docker-build docker-up docker-down docker-logs docker-restart docker-shell docker-clean docker-test
 
 # Default document root
 DOC_ROOT ?= ./data/documents
@@ -33,3 +33,35 @@ test:  ## Run backend tests
 
 test-verbose:  ## Run backend tests with verbose output
 	uv run pytest -v
+
+# Docker commands
+docker-build:  ## Build Docker image
+	docker build -t textractor:latest .
+
+docker-up:  ## Start application with docker-compose
+	docker-compose up -d
+
+docker-down:  ## Stop docker-compose containers
+	docker-compose down
+
+docker-logs:  ## View container logs
+	docker-compose logs -f
+
+docker-restart:  ## Restart containers
+	docker-compose restart
+
+docker-shell:  ## Open shell in running container
+	docker-compose exec textractor /bin/bash
+
+docker-clean:  ## Remove containers and volumes (WARNING: deletes data)
+	@echo "WARNING: This will delete all container data!"
+	@read -p "Are you sure? [y/N] " -n 1 -r; \
+	echo; \
+	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
+		docker-compose down -v; \
+		docker volume rm textractor-data 2>/dev/null || true; \
+	fi
+
+docker-test:  ## Test Docker build and run
+	docker build -t textractor:test .
+	@echo "✓ Docker build successful"
