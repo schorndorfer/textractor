@@ -69,6 +69,28 @@ Browser:    http://localhost:5173
 | `llm.py` | Two-stage LLM pipeline: `extract_medical_terms` (Stage 1), `generate_annotations_raw` (Stage 2), `validate_and_convert_annotations` (span recovery + AnnotationFile conversion) |
 | `main.py` | App factory: wires routers, CORS, lifespan, optional `StaticFiles` mount. Initializes SNOMED terminology on startup. |
 
+### Clinical Filtering
+
+Pre-annotation automatically filters document-level annotations to clinical concepts only:
+
+**Clinical categories kept:**
+- `problem`, `diagnosis`, `finding` - diseases, conditions, disorders
+- `symptom`, `sign` - patient complaints, clinical observations
+- `procedure` - therapeutic/diagnostic procedures
+- `medication` - drugs, pharmaceuticals
+- `lab` - laboratory tests and results
+- `device` - medical devices, implants
+- `allergy` - allergic reactions, intolerances
+
+**Non-clinical categories filtered:**
+- `demographic` - age, gender, race
+- `administrative` - visit info, insurance
+- `social_history` - smoking, alcohol
+- `temporal` - dates, times
+- `other` - miscellaneous
+
+Filtering happens post-generation with cascade deletion of orphaned reasoning steps and spans. Check backend logs for filtering statistics.
+
 ### SNOMED CT Terminology (`src/textractor/terminology/`)
 
 **SNOMED CT integration** - place SNOMED RF2 files in `data/terminology/SnomedCT/` and they will be automatically loaded at startup.
