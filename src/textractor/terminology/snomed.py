@@ -193,6 +193,10 @@ class SNOMEDSearch:
             conn = self._get_connection()
             cursor = conn.cursor()
 
+            # Escape query for FTS5 by wrapping in double quotes (phrase search)
+            # This treats special FTS5 syntax characters (commas, parens, etc.) as literals
+            fts_query = f'"{query.strip()}"'
+
             # FTS5 MATCH query - rank is negative (higher is better match)
             # We get more results than needed for re-ranking
             cursor.execute("""
@@ -201,7 +205,7 @@ class SNOMEDSearch:
                 WHERE snomed_fts MATCH ?
                 ORDER BY rank
                 LIMIT ?
-            """, (query, limit * 3))
+            """, (fts_query, limit * 3))
 
             results = cursor.fetchall()
 
