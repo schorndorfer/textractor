@@ -39,6 +39,7 @@ class DocumentAnnotation(BaseModel):
     reasoning_step_ids: list[str] = Field(default_factory=list)
     note: str = ""
     source: Literal["human", "model"] = "human"
+    category: Optional[str] = None  # Clinical category (e.g., "problem", "medication")
 
 
 class AnnotationFile(BaseModel):
