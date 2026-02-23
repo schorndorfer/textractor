@@ -113,9 +113,10 @@ export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMa
 
     if (parentAnns.length === 0) return; // No parent annotation
 
-    // If current selection already includes this step, keep it selected
+    // Toggle behavior: if current selection includes this step, deselect
     if (selectedAnnotationId && parentAnns.some((ann) => ann.id === selectedAnnotationId)) {
-      return; // Already showing this step in graph
+      onAnnotationSelect(selectedAnnotationId); // Toggle off (will switch to document tab)
+      return;
     }
 
     // Select the first parent annotation
