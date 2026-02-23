@@ -21,6 +21,45 @@ make clean         # remove build artifacts
 make help          # show all available commands
 ```
 
+### Docker (Containerized)
+
+```bash
+# Initial setup
+cp .env.example .env
+# Edit .env and add your ANTHROPIC_API_KEY
+
+# Start with docker-compose (recommended)
+make docker-up              # or: docker compose up -d
+
+# View logs
+make docker-logs            # or: docker compose logs -f
+
+# Stop
+make docker-down            # or: docker compose down
+
+# Access application
+open http://localhost:8000
+```
+
+**Requirements:**
+- Docker 20.10+ and Docker Compose 2.0+
+- SNOMED CT data in `data/terminology/SnomedCT/` (mounted as volume)
+- Anthropic API key in `.env` file
+
+**Volume Management:**
+
+Backup data:
+```bash
+docker run --rm -v textractor-data:/data -v $(pwd):/backup alpine tar czf /backup/textractor-data-backup.tar.gz -C /data .
+```
+
+Restore data:
+```bash
+docker run --rm -v textractor-data:/data -v $(pwd):/backup alpine sh -c "cd /data && tar xzf /backup/textractor-data-backup.tar.gz"
+```
+
+**See `docs/DOCKER.md` for comprehensive deployment guide including AWS and GCP.**
+
 ### Backend (Manual)
 
 ```bash
@@ -241,4 +280,4 @@ Annotation output (`{doc_id}.ann.json`):
 - SQLite database will be automatically built at `data/terminology/snomed.db` on first startup
 - Subsequent startups will reuse the existing database
 
-- When resolving github issues, always create a branch, then a PR
+- When working on a github issue, create a new, appropriately named local branch. Do the work on that branch, then push to remote and create a Pull Request linked to the issue.
