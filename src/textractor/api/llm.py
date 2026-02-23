@@ -219,7 +219,20 @@ Instructions:
 3. Create document-level annotations for the primary diagnoses/findings
 4. ONLY use SNOMED codes from the provided list above
 5. Use span_indices and reasoning_step_indices to reference items by array position (0-indexed)
-6. Be accurate - only annotate what is clearly stated in the text
+6. Categorize each document annotation:
+   - problem/diagnosis/finding: diseases, conditions, disorders
+   - symptom/sign: patient complaints, clinical observations
+   - procedure: therapeutic/diagnostic procedures
+   - medication: drugs, pharmaceuticals
+   - lab: laboratory tests and results
+   - device: medical devices, implants
+   - allergy: allergic reactions, intolerances
+   - demographic: age, gender, race (NON-clinical)
+   - administrative: visit info, insurance (NON-clinical)
+   - social_history: smoking, alcohol (NON-clinical)
+   - temporal: dates, times (NON-clinical)
+   - other: anything else
+7. Be accurate - only annotate what is clearly stated in the text
 
 Return structured annotations following the tool schema."""
 
