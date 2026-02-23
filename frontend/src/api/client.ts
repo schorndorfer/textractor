@@ -50,6 +50,11 @@ export const api = {
       body: JSON.stringify(ann),
     }),
 
+  preannotateDocument: (docId: string) =>
+    request<AnnotationFile>(`/documents/${docId}/preannotate`, {
+      method: 'POST',
+    }),
+
   searchTerminology: (q: string, limit = 20) =>
     request<TerminologyConcept[]>(
       `/terminology/search?q=${encodeURIComponent(q)}&limit=${limit}`

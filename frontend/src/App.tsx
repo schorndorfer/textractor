@@ -26,6 +26,11 @@ export function App() {
   const [focusedSpanId, setFocusedSpanId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'document' | 'graph'>('document');
 
+  // Pre-annotation state
+  const [isPreAnnotated, setIsPreAnnotated] = useState(false);
+  const [preAnnotateLoading, setPreAnnotateLoading] = useState(false);
+  const [preAnnotateError, setPreAnnotateError] = useState<string | null>(null);
+
   // Refs for auto-save
   const autoSaveTimeoutRef = useRef<number | null>(null);
   const isSavingRef = useRef(false);
@@ -68,6 +73,8 @@ export function App() {
       setLoading(true);
       setSelectedAnnotationId(null); // Clear selection when switching documents
       setFocusedSpanId(null); // Clear focused span when switching documents
+      setIsPreAnnotated(false); // Clear pre-annotated flag
+      setPreAnnotateError(null); // Clear pre-annotate errors
 
       try {
         const [doc, ann] = await Promise.all([
@@ -102,6 +109,12 @@ export function App() {
     }
     setAnnotations(updated);
     setIsDirty(true);
+
+    // Clear pre-annotated flag on manual edit
+    // This allows auto-save to resume
+    if (isPreAnnotated) {
+      setIsPreAnnotated(false);
+    }
   };
 
   // Clear errors when document lock status changes
@@ -113,7 +126,7 @@ export function App() {
 
   // Debounced auto-save when annotations change
   useEffect(() => {
-    if (!isDirty || !annotations || annotations.completed) return; // Don't auto-save locked documents
+    if (!isDirty || !annotations || annotations.completed || isPreAnnotated) return; // Don't auto-save locked documents or pre-annotated content
 
     // Clear existing timeout
     if (autoSaveTimeoutRef.current) {
@@ -130,7 +143,7 @@ export function App() {
         clearTimeout(autoSaveTimeoutRef.current);
       }
     };
-  }, [isDirty, annotations]);
+  }, [isDirty, annotations, isPreAnnotated]);
 
   // Auto-save on page unload/refresh
   useEffect(() => {
@@ -184,6 +197,40 @@ export function App() {
       setAnnotations(deepClone(originalAnnotations));
       setIsDirty(false);
       setSaveError(null);
+      setPreAnnotateError(null); // Clear pre-annotate errors
+      setIsPreAnnotated(false); // Clear pre-annotated flag
+    }
+  };
+
+  const handlePreAnnotate = async () => {
+    if (!selectedDocId) return;
+
+    setPreAnnotateLoading(true);
+    setPreAnnotateError(null);
+
+    try {
+      const aiAnnotations = await api.preannotateDocument(selectedDocId);
+
+      // Load AI annotations as unsaved changes
+      setAnnotations(aiAnnotations);
+      setIsPreAnnotated(true);
+      setIsDirty(true);
+
+    } catch (err) {
+      const errorStr = String(err);
+      let errorMsg = 'Pre-annotation failed';
+
+      if (errorStr.includes('500') && errorStr.includes('ANTHROPIC_API_KEY')) {
+        errorMsg = 'API key not configured. Please contact administrator.';
+      } else if (errorStr.includes('502')) {
+        errorMsg = 'AI service error. Please try again.';
+      } else if (errorStr.includes('403')) {
+        errorMsg = 'Cannot pre-annotate a locked document.';
+      }
+
+      setPreAnnotateError(errorMsg);
+    } finally {
+      setPreAnnotateLoading(false);
     }
   };
 
@@ -377,6 +424,9 @@ export function App() {
                 onToggleCollapse={toggleRightSidebar}
                 collapsed={rightSidebarCollapsed}
                 onSpanClick={setFocusedSpanId}
+                onPreAnnotate={handlePreAnnotate}
+                isPreAnnotating={preAnnotateLoading}
+                preAnnotateError={preAnnotateError}
               />
             </>
           )
