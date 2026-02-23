@@ -117,10 +117,13 @@ Return a list of medical terms that should be coded using clinical terminology (
 
 Be thorough but only include medically significant terms."""
 
+    max_tokens = int(os.environ.get("TEXTRACTOR_LLM_MAX_TOKENS_EXTRACT", "4096"))
+    temperature = float(os.environ.get("TEXTRACTOR_LLM_TEMPERATURE", "0.0"))
+
     response = client.messages.create(
         model=model,
-        max_tokens=4096,  # Increased for very large documents
-        temperature=0.0,
+        max_tokens=max_tokens,
+        temperature=temperature,
         tools=tools,
         messages=[{"role": "user", "content": prompt}],
     )
@@ -298,10 +301,13 @@ Instructions:
 
 Return structured annotations following the tool schema."""
 
+    max_tokens = int(os.environ.get("TEXTRACTOR_LLM_MAX_TOKENS_ANNOTATE", "16384"))
+    temperature = float(os.environ.get("TEXTRACTOR_LLM_TEMPERATURE", "0.0"))
+
     response = client.messages.create(
         model=model,
-        max_tokens=16384,  # Increased for very large documents with many annotations
-        temperature=0.0,
+        max_tokens=max_tokens,
+        temperature=temperature,
         tools=tools,
         messages=[{"role": "user", "content": prompt}],
     )

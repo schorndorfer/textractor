@@ -17,7 +17,8 @@ from .routers import terminology as terminology_router
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     doc_root = Path(os.environ.get("TEXTRACTOR_DOC_ROOT", "./data/documents"))
-    snomed_dir = Path("./data/terminology/SnomedCT")
+    snomed_dir_path = os.environ.get("TEXTRACTOR_SNOMED_DIR", "./data/terminology/SnomedCT")
+    snomed_dir = Path(snomed_dir_path) if snomed_dir_path else None
 
     init_store(doc_root)
     init_terminology(snomed_dir=snomed_dir)
@@ -32,12 +33,15 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # Get CORS origins from environment variable
+    cors_origins_str = os.environ.get(
+        "TEXTRACTOR_CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+    )
+    cors_origins = [origin.strip() for origin in cors_origins_str.split(",")]
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-        ],
+        allow_origins=cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

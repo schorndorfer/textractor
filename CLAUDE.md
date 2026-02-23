@@ -82,17 +82,31 @@ npm run build      # production build → frontend/dist/
 
 ### Testing
 
+**Backend tests (116 tests):**
 ```bash
 make test                              # run all tests (recommended)
 make test-verbose                      # verbose output
 
 # Or use pytest directly:
 uv sync --extra dev                    # install test dependencies (pytest)
-uv run pytest                          # run all tests
+uv run pytest                          # run all backend tests
 uv run pytest tests/test_snomed.py     # run specific test file
 uv run pytest -v                       # verbose output
 uv run pytest -k "search"              # run tests matching pattern
 ```
+
+**Frontend tests (29 tests):**
+```bash
+cd frontend
+npm test                               # run all frontend tests (Vitest)
+npm test -- --ui                       # run with UI
+npm test -- --coverage                 # run with coverage report
+npm test -- SpanHighlighter            # run specific test file
+```
+
+**Test coverage:**
+- **Backend:** Storage layer, routers (documents, annotations, terminology), LLM module
+- **Frontend:** Components (SpanHighlighter, ConceptSearch), test infrastructure with Vitest + React Testing Library
 
 **Note:** SNOMED tests require SNOMED CT RF2 files in `data/terminology/SnomedCT/`. Tests will skip if data is not present.
 
@@ -268,13 +282,32 @@ Annotation output (`{doc_id}.ann.json`):
 
 ### Environment variables
 
+#### Server Configuration
+
+| Variable | Default | Description |
+|---|---|---|
+| `TEXTRACTOR_HOST` | `0.0.0.0` | Server host address |
+| `TEXTRACTOR_PORT` | `8000` | Server port |
+| `TEXTRACTOR_CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Comma-separated list of allowed CORS origins |
+
+#### Storage Configuration
+
 | Variable | Default | Description |
 |---|---|---|
 | `TEXTRACTOR_DOC_ROOT` | `./data/documents` | Directory scanned recursively for `*.json` document files |
+| `TEXTRACTOR_SNOMED_DIR` | `./data/terminology/SnomedCT` | Directory containing SNOMED CT RF2 files |
+
+#### LLM Configuration
+
+| Variable | Default | Description |
+|---|---|---|
 | `ANTHROPIC_API_KEY` | (required for pre-annotation) | Anthropic API key for Claude AI access (not needed for Bedrock) |
 | `AWS_BEARER_TOKEN_BEDROCK` | - | AWS bearer token for Bedrock authentication (alternative to direct API) |
 | `AWS_REGION` | `us-east-1` | AWS region for Bedrock (only used if `AWS_BEARER_TOKEN_BEDROCK` is set) |
 | `TEXTRACTOR_LLM_MODEL` | `claude-sonnet-4-5` | Model name for annotation generation (use Bedrock model IDs when using Bedrock) |
+| `TEXTRACTOR_LLM_MAX_TOKENS_EXTRACT` | `4096` | Maximum tokens for medical term extraction |
+| `TEXTRACTOR_LLM_MAX_TOKENS_ANNOTATE` | `16384` | Maximum tokens for annotation generation |
+| `TEXTRACTOR_LLM_TEMPERATURE` | `0.0` | LLM temperature (0.0 = deterministic) |
 | `TEXTRACTOR_FUZZY_THRESHOLD` | `90` | Minimum similarity (0-100) for span offset recovery |
 
 **LLM Provider Options:**
@@ -282,7 +315,7 @@ Annotation output (`{doc_id}.ann.json`):
 - **AWS Bedrock:** Set `AWS_BEARER_TOKEN_BEDROCK` (and optionally `AWS_REGION`). When using Bedrock, use Bedrock model IDs like `anthropic.claude-sonnet-4-0-v1` for `TEXTRACTOR_LLM_MODEL`.
 
 **SNOMED CT Setup:**
-- Place SNOMED CT RF2 files in `data/terminology/SnomedCT/`
+- Place SNOMED CT RF2 files in `data/terminology/SnomedCT/` (or path specified in `TEXTRACTOR_SNOMED_DIR`)
 - SQLite database will be automatically built at `data/terminology/snomed.db` on first startup
 - Subsequent startups will reuse the existing database
 

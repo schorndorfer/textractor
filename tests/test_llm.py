@@ -14,6 +14,7 @@ def test_extract_medical_terms():
     """Test medical term extraction from clinical text"""
     mock_response = Mock()
     mock_response.stop_reason = "tool_use"
+    mock_response.usage = {"input_tokens": 100, "output_tokens": 50}
     mock_response.content = [
         Mock(
             type="tool_use",
@@ -22,14 +23,15 @@ def test_extract_medical_terms():
         )
     ]
 
-    with patch("anthropic.Anthropic") as mock_client:
-        mock_client.return_value.messages.create.return_value = mock_response
+    mock_client = Mock()
+    mock_client.messages.create.return_value = mock_response
 
+    with patch("textractor.api.llm.get_anthropic_client", return_value=mock_client):
         text = "Patient with chest pain, hypertension, and diabetes mellitus."
         terms = extract_medical_terms(text, api_key="test-key", model="claude-sonnet-4-5")
 
         assert terms == ["chest pain", "hypertension", "diabetes mellitus"]
-        assert mock_client.return_value.messages.create.called
+        assert mock_client.messages.create.called
 
 
 def test_extract_medical_terms_no_tool_use():
@@ -38,15 +40,16 @@ def test_extract_medical_terms_no_tool_use():
     mock_response.stop_reason = "end_turn"
     mock_response.content = []
 
-    with patch("anthropic.Anthropic") as mock_client:
-        mock_client.return_value.messages.create.return_value = mock_response
+    mock_client = Mock()
+    mock_client.messages.create.return_value = mock_response
 
+    with patch("textractor.api.llm.get_anthropic_client", return_value=mock_client):
         text = "Some text"
         try:
             extract_medical_terms(text, api_key="test-key", model="claude-sonnet-4-5")
             assert False, "Should have raised ValueError"
         except ValueError as e:
-            assert "did not return structured output" in str(e)
+            assert "No tool calls found" in str(e)
 
 
 # ── generate_annotations_raw ──────────────────────────────────────────────────
@@ -55,6 +58,7 @@ def test_generate_annotations_raw():
     """Test structured annotation generation"""
     mock_response = Mock()
     mock_response.stop_reason = "tool_use"
+    mock_response.usage = {"input_tokens": 100, "output_tokens": 50}
     mock_response.content = [
         Mock(
             type="tool_use",
@@ -84,9 +88,10 @@ def test_generate_annotations_raw():
         )
     ]
 
-    with patch("anthropic.Anthropic") as mock_client:
-        mock_client.return_value.messages.create.return_value = mock_response
+    mock_client = Mock()
+    mock_client.messages.create.return_value = mock_response
 
+    with patch("textractor.api.llm.get_anthropic_client", return_value=mock_client):
         text = "Patient with chest pain."
         snomed = [TerminologyConcept(code="29857009", display="Chest pain", system="SNOMED-CT")]
         result = generate_annotations_raw(text, snomed, api_key="test-key", model="claude-sonnet-4-5")
