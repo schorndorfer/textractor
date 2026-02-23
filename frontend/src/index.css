@@ -716,7 +716,7 @@ input { font-family: inherit; font-size: 13px; }
 .annotation-panel {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
   background: var(--sidebar-bg);
   height: 100%;
   flex: 1;
