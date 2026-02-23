@@ -170,27 +170,28 @@ def test_validate_and_convert_annotations():
             {
                 "concept_code": "29857009",
                 "concept_display": "Chest pain",
-                "evidence_span_indices": [0, 2],  # 2 will be removed
-                "reasoning_step_indices": [0],
+                "evidence_span_indices": [0, 2],  # 2 will be removed (invalid span)
+                "reasoning_step_indices": [0, 1],  # both steps referenced → neither orphaned
                 "note": "",
+                "category": "finding",  # Clinical - kept by filter
             }
         ],
     }
 
     result = validate_and_convert_annotations(raw_data, doc_text, "doc_001", threshold=90)
 
-    # Should have 2 valid spans (0 and 1, with 1 recovered)
+    # Should have 2 valid spans (0 and 1, with 1 recovered); span 2 (cough) discarded
     assert len(result.spans) == 2
     assert result.spans[0].text == "chest pain"
     assert result.spans[1].text == "fever"
     assert result.spans[1].start == 27  # Recovered offset
 
-    # Reasoning steps should have cleaned span_ids
+    # Both reasoning steps kept (both referenced by the document annotation)
     assert len(result.reasoning_steps) == 2
     assert len(result.reasoning_steps[0].span_ids) == 1
     assert len(result.reasoning_steps[1].span_ids) == 1  # Lost the invalid span
 
-    # Document annotation should have cleaned evidence_span_ids
+    # Document annotation should have cleaned evidence_span_ids (span 2/cough removed)
     assert len(result.document_annotations) == 1
     assert len(result.document_annotations[0].evidence_span_ids) == 1  # Lost the invalid span
 
@@ -198,3 +199,63 @@ def test_validate_and_convert_annotations():
     assert all(s.source == "model" for s in result.spans)
     assert all(s.source == "model" for s in result.reasoning_steps)
     assert all(a.source == "model" for a in result.document_annotations)
+
+
+def test_filter_non_clinical_annotations():
+    """Test that non-clinical document annotations are filtered out."""
+    from textractor.api.llm import validate_and_convert_annotations
+
+    # Mock LLM response with mixed clinical and non-clinical annotations
+    raw_data = {
+        "spans": [
+            {"start": 0, "end": 10, "text": "chest pain"},
+            {"start": 14, "end": 30, "text": "68 year old male"},
+        ],
+        "reasoning_steps": [
+            {
+                "concept_code": "29857009",
+                "concept_display": "Chest pain",
+                "span_indices": [0],
+                "note": "Patient symptom",
+            },
+            {
+                "concept_code": "248153007",
+                "concept_display": "Male",
+                "span_indices": [1],
+                "note": "Patient demographics",
+            },
+        ],
+        "document_annotations": [
+            {
+                "concept_code": "29857009",
+                "concept_display": "Chest pain",
+                "evidence_span_indices": [0],
+                "reasoning_step_indices": [0],
+                "note": "Primary complaint",
+                "category": "symptom",  # Clinical - should be kept
+            },
+            {
+                "concept_code": "248153007",
+                "concept_display": "Male gender",
+                "evidence_span_indices": [1],
+                "reasoning_step_indices": [1],
+                "note": "Patient gender",
+                "category": "demographic",  # Non-clinical - should be filtered
+            },
+        ],
+    }
+
+    doc_text = "chest pain in 68 year old male"
+    result = validate_and_convert_annotations(raw_data, doc_text, "test_doc")
+
+    # Should keep only clinical annotation
+    assert len(result.document_annotations) == 1
+    assert result.document_annotations[0].concept.display == "Chest pain"
+    assert result.document_annotations[0].category == "symptom"
+
+    # Should cascade delete orphaned reasoning step and span
+    assert len(result.reasoning_steps) == 1
+    assert result.reasoning_steps[0].concept.display == "Chest pain"
+
+    assert len(result.spans) == 1
+    assert result.spans[0].text == "chest pain"

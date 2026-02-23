@@ -416,6 +416,7 @@ def validate_and_convert_annotations(
             reasoning_step_ids=valid_step_ids,
             note=ann_data.get("note", ""),
             source="model",
+            category=ann_data.get("category"),
         )
         document_annotations.append(ann)
 
@@ -424,10 +425,48 @@ def validate_and_convert_annotations(
         f"{len(invalid_span_indices)} discarded"
     )
 
+    # Stage 1: Filter non-clinical document annotations
+    clinical_annotations = []
+    filtered_count = 0
+    filtered_by_category: dict[str, int] = {}
+
+    for ann in document_annotations:
+        category = ann.category or "unknown"
+        if category in CLINICAL_CATEGORIES:
+            clinical_annotations.append(ann)
+        else:
+            filtered_count += 1
+            filtered_by_category[category] = filtered_by_category.get(category, 0) + 1
+            logger.info(f"Filtered out {category} annotation: {ann.concept.display}")
+
+    # Stage 2: Remove orphaned reasoning steps
+    referenced_step_ids = set()
+    for ann in clinical_annotations:
+        referenced_step_ids.update(ann.reasoning_step_ids)
+
+    clinical_steps = [step for step in reasoning_steps if step.id in referenced_step_ids]
+    orphaned_steps = len(reasoning_steps) - len(clinical_steps)
+
+    # Stage 3: Remove orphaned spans
+    referenced_span_ids = set()
+    for step in clinical_steps:
+        referenced_span_ids.update(step.span_ids)
+
+    clinical_spans = [span for span in spans if span.id in referenced_span_ids]
+    orphaned_spans = len(spans) - len(clinical_spans)
+
+    if filtered_count > 0:
+        category_summary = ", ".join(f"{cat}={count}" for cat, count in filtered_by_category.items())
+        logger.info(
+            f"Clinical filtering: kept {len(clinical_annotations)}/{len(document_annotations)} annotations, "
+            f"removed {filtered_count} non-clinical ({category_summary}), "
+            f"cascaded removal: {orphaned_steps} reasoning steps, {orphaned_spans} spans"
+        )
+
     return AnnotationFile(
         doc_id=doc_id,
-        spans=spans,
-        reasoning_steps=reasoning_steps,
-        document_annotations=document_annotations,
+        spans=clinical_spans,
+        reasoning_steps=clinical_steps,
+        document_annotations=clinical_annotations,
         completed=False,
     )
