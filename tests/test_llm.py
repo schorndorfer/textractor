@@ -259,3 +259,39 @@ def test_filter_non_clinical_annotations():
 
     assert len(result.spans) == 1
     assert result.spans[0].text == "chest pain"
+
+
+def test_filter_all_annotations_returns_empty():
+    """Test that filtering all annotations returns empty AnnotationFile."""
+    from textractor.api.llm import validate_and_convert_annotations
+
+    raw_data = {
+        "spans": [
+            {"start": 0, "end": 16, "text": "68 year old male"},
+        ],
+        "reasoning_steps": [
+            {
+                "concept_code": "248153007",
+                "concept_display": "Male",
+                "span_indices": [0],
+                "note": "Demographics",
+            },
+        ],
+        "document_annotations": [
+            {
+                "concept_code": "248153007",
+                "concept_display": "Male gender",
+                "evidence_span_indices": [0],
+                "reasoning_step_indices": [0],
+                "category": "demographic",  # Non-clinical
+            },
+        ],
+    }
+
+    doc_text = "68 year old male"
+    result = validate_and_convert_annotations(raw_data, doc_text, "test_doc")
+
+    # All should be filtered
+    assert len(result.document_annotations) == 0
+    assert len(result.reasoning_steps) == 0
+    assert len(result.spans) == 0
