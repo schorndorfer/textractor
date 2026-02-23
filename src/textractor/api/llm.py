@@ -170,7 +170,11 @@ def generate_annotations_raw(
                             "properties": {
                                 "concept_code": {"type": "string"},
                                 "concept_display": {"type": "string"},
-                                "span_indices": {"type": "array", "items": {"type": "integer"}},
+                                "span_indices": {
+                                    "type": "array",
+                                    "items": {"type": "integer"},
+                                    "minItems": 1,
+                                },
                                 "note": {"type": "string"},
                             },
                             "required": ["concept_code", "concept_display", "span_indices"],
@@ -183,8 +187,11 @@ def generate_annotations_raw(
                             "properties": {
                                 "concept_code": {"type": "string"},
                                 "concept_display": {"type": "string"},
-                                "evidence_span_indices": {"type": "array", "items": {"type": "integer"}},
-                                "reasoning_step_indices": {"type": "array", "items": {"type": "integer"}},
+                                "reasoning_step_indices": {
+                                    "type": "array",
+                                    "items": {"type": "integer"},
+                                    "minItems": 1,
+                                },
                                 "note": {"type": "string"},
                                 "category": {
                                     "type": "string",
@@ -196,7 +203,7 @@ def generate_annotations_raw(
                                     ],
                                 },
                             },
-                            "required": ["concept_code", "concept_display", "category"],
+                            "required": ["concept_code", "concept_display", "category", "reasoning_step_indices"],
                         },
                     },
                 },
@@ -218,8 +225,13 @@ Instructions:
 2. Create reasoning steps linking spans to SNOMED concepts
 3. Create document-level annotations for the primary diagnoses/findings
 4. ONLY use SNOMED codes from the provided list above
-5. Use span_indices and reasoning_step_indices to reference items by array position (0-indexed)
-6. Categorize each document annotation:
+5. STRICT HIERARCHY - follow this progression:
+   - Spans (text evidence) → Reasoning Steps (intermediate concepts) → Document Annotations (final findings)
+   - Every reasoning step MUST reference at least 1 span
+   - Every document annotation MUST reference at least 1 reasoning step
+   - Document annotations should NOT directly reference spans - only through reasoning steps
+6. Use span_indices and reasoning_step_indices to reference items by array position (0-indexed)
+7. Categorize each document annotation:
    - problem/diagnosis/finding: diseases, conditions, disorders
    - symptom/sign: patient complaints, clinical observations
    - procedure: therapeutic/diagnostic procedures
@@ -232,7 +244,7 @@ Instructions:
    - social_history: smoking, alcohol (NON-clinical)
    - temporal: dates, times (NON-clinical)
    - other: anything else
-7. Be accurate - only annotate what is clearly stated in the text
+8. Be accurate - only annotate what is clearly stated in the text
 
 Return structured annotations following the tool schema."""
 
@@ -446,6 +458,56 @@ def validate_and_convert_annotations(
         f"Validation complete: {len(valid_spans)}/{len(raw_spans)} spans valid, "
         f"{len(invalid_span_indices)} discarded"
     )
+
+    # ===== HIERARCHY VALIDATION =====
+
+    # Stage 1: Filter reasoning steps with no spans
+    hierarchy_valid_steps = []
+    filtered_steps_no_spans = 0
+
+    for step in reasoning_steps:
+        if len(step.span_ids) == 0:
+            filtered_steps_no_spans += 1
+            logger.info(f"Hierarchy: filtered reasoning step with no spans: {step.concept.display}")
+        else:
+            hierarchy_valid_steps.append(step)
+
+    reasoning_steps = hierarchy_valid_steps
+
+    # Rebuild valid step ID set for Stage 2
+    valid_step_ids = {step.id for step in reasoning_steps}
+
+    # Stage 2: Filter document annotations with direct span links or no valid reasoning steps
+    hierarchy_valid_anns = []
+    filtered_anns_no_steps = 0
+    filtered_anns_direct_spans = 0
+
+    for ann in document_annotations:
+        # Check for direct span links (should be empty for AI-generated annotations)
+        if len(ann.evidence_span_ids) > 0:
+            filtered_anns_direct_spans += 1
+            logger.info(f"Hierarchy: filtered annotation with direct span links: {ann.concept.display}")
+            continue
+
+        # Check that annotation references at least one still-valid reasoning step
+        valid_referenced_steps = [sid for sid in ann.reasoning_step_ids if sid in valid_step_ids]
+        if len(valid_referenced_steps) == 0:
+            filtered_anns_no_steps += 1
+            logger.info(f"Hierarchy: filtered annotation with no valid reasoning steps: {ann.concept.display}")
+            continue
+
+        hierarchy_valid_anns.append(ann)
+
+    document_annotations = hierarchy_valid_anns
+
+    if filtered_steps_no_spans > 0 or filtered_anns_no_steps > 0 or filtered_anns_direct_spans > 0:
+        logger.info(
+            f"Hierarchy validation: filtered {filtered_steps_no_spans} reasoning steps (no spans), "
+            f"{filtered_anns_no_steps} document annotations (no reasoning steps), "
+            f"{filtered_anns_direct_spans} document annotations (direct span links)"
+        )
+
+    # ===== END HIERARCHY VALIDATION STAGE 1 =====
 
     # Stage 1: Filter non-clinical document annotations
     clinical_annotations = []

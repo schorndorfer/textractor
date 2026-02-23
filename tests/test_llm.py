@@ -170,7 +170,7 @@ def test_validate_and_convert_annotations():
             {
                 "concept_code": "29857009",
                 "concept_display": "Chest pain",
-                "evidence_span_indices": [0, 2],  # 2 will be removed (invalid span)
+                "evidence_span_indices": [],  # No direct span links (hierarchy enforcement)
                 "reasoning_step_indices": [0, 1],  # both steps referenced → neither orphaned
                 "note": "",
                 "category": "finding",  # Clinical - kept by filter
@@ -191,9 +191,9 @@ def test_validate_and_convert_annotations():
     assert len(result.reasoning_steps[0].span_ids) == 1
     assert len(result.reasoning_steps[1].span_ids) == 1  # Lost the invalid span
 
-    # Document annotation should have cleaned evidence_span_ids (span 2/cough removed)
+    # Document annotation should be kept (valid hierarchy: no direct links, has reasoning steps)
     assert len(result.document_annotations) == 1
-    assert len(result.document_annotations[0].evidence_span_ids) == 1  # Lost the invalid span
+    assert len(result.document_annotations[0].evidence_span_ids) == 0  # No direct span links
 
     # All should have source='model'
     assert all(s.source == "model" for s in result.spans)
@@ -229,7 +229,7 @@ def test_filter_non_clinical_annotations():
             {
                 "concept_code": "29857009",
                 "concept_display": "Chest pain",
-                "evidence_span_indices": [0],
+                "evidence_span_indices": [],  # No direct span links (hierarchy enforcement)
                 "reasoning_step_indices": [0],
                 "note": "Primary complaint",
                 "category": "symptom",  # Clinical - should be kept
@@ -237,7 +237,7 @@ def test_filter_non_clinical_annotations():
             {
                 "concept_code": "248153007",
                 "concept_display": "Male gender",
-                "evidence_span_indices": [1],
+                "evidence_span_indices": [],  # No direct span links (hierarchy enforcement)
                 "reasoning_step_indices": [1],
                 "note": "Patient gender",
                 "category": "demographic",  # Non-clinical - should be filtered
@@ -281,7 +281,7 @@ def test_filter_all_annotations_returns_empty():
             {
                 "concept_code": "248153007",
                 "concept_display": "Male gender",
-                "evidence_span_indices": [0],
+                "evidence_span_indices": [],  # No direct span links
                 "reasoning_step_indices": [0],
                 "category": "demographic",  # Non-clinical
             },
@@ -294,6 +294,179 @@ def test_filter_all_annotations_returns_empty():
     # All should be filtered
     assert len(result.document_annotations) == 0
     assert len(result.reasoning_steps) == 0
+    assert len(result.spans) == 0
+
+
+def test_filter_reasoning_step_no_spans():
+    """Test that reasoning steps with 0 spans are filtered."""
+    from textractor.api.llm import validate_and_convert_annotations
+
+    raw_data = {
+        "spans": [
+            {"start": 0, "end": 10, "text": "chest pain"},
+        ],
+        "reasoning_steps": [
+            {
+                "concept_code": "29857009",
+                "concept_display": "Chest pain",
+                "span_indices": [0],  # Valid - has span
+            },
+            {
+                "concept_code": "12345",
+                "concept_display": "Invalid concept",
+                "span_indices": [],  # Invalid - no spans
+            },
+        ],
+        "document_annotations": [
+            {
+                "concept_code": "29857009",
+                "concept_display": "Chest pain",
+                "evidence_span_indices": [],
+                "reasoning_step_indices": [0],
+                "category": "symptom",
+            },
+        ],
+    }
+
+    doc_text = "chest pain"
+    result = validate_and_convert_annotations(raw_data, doc_text, "test_doc")
+
+    # Should keep only valid reasoning step
+    assert len(result.reasoning_steps) == 1
+    assert result.reasoning_steps[0].concept.display == "Chest pain"
+
+    # Document annotation should still be valid
+    assert len(result.document_annotations) == 1
+
+
+def test_filter_document_annotation_no_steps():
+    """Test that document annotations with 0 reasoning steps are filtered."""
+    from textractor.api.llm import validate_and_convert_annotations
+
+    raw_data = {
+        "spans": [{"start": 0, "end": 10, "text": "chest pain"}],
+        "reasoning_steps": [
+            {
+                "concept_code": "29857009",
+                "concept_display": "Chest pain",
+                "span_indices": [0],
+            },
+        ],
+        "document_annotations": [
+            {
+                "concept_code": "29857009",
+                "concept_display": "Chest pain",
+                "evidence_span_indices": [],
+                "reasoning_step_indices": [],  # Invalid - no reasoning steps
+                "category": "symptom",
+            },
+        ],
+    }
+
+    doc_text = "chest pain"
+    result = validate_and_convert_annotations(raw_data, doc_text, "test_doc")
+
+    # Document annotation should be filtered
+    assert len(result.document_annotations) == 0
+
+
+def test_filter_document_annotation_direct_spans():
+    """Test that document annotations with evidence_span_ids are filtered."""
+    from textractor.api.llm import validate_and_convert_annotations
+
+    raw_data = {
+        "spans": [{"start": 0, "end": 10, "text": "chest pain"}],
+        "reasoning_steps": [
+            {
+                "concept_code": "29857009",
+                "concept_display": "Chest pain",
+                "span_indices": [0],
+            },
+        ],
+        "document_annotations": [
+            {
+                "concept_code": "29857009",
+                "concept_display": "Chest pain",
+                "evidence_span_indices": [0],  # Invalid - direct span links
+                "reasoning_step_indices": [0],
+                "category": "symptom",
+            },
+        ],
+    }
+
+    doc_text = "chest pain"
+    result = validate_and_convert_annotations(raw_data, doc_text, "test_doc")
+
+    # Document annotation should be filtered (has direct span links)
+    assert len(result.document_annotations) == 0
+
+
+def test_valid_hierarchy_passes():
+    """Test that valid hierarchy is not filtered."""
+    from textractor.api.llm import validate_and_convert_annotations
+
+    raw_data = {
+        "spans": [{"start": 0, "end": 10, "text": "chest pain"}],
+        "reasoning_steps": [
+            {
+                "concept_code": "29857009",
+                "concept_display": "Chest pain",
+                "span_indices": [0],  # Valid - has span
+            },
+        ],
+        "document_annotations": [
+            {
+                "concept_code": "29857009",
+                "concept_display": "Chest pain",
+                "evidence_span_indices": [],  # Valid - no direct links
+                "reasoning_step_indices": [0],  # Valid - has reasoning step
+                "category": "symptom",
+            },
+        ],
+    }
+
+    doc_text = "chest pain"
+    result = validate_and_convert_annotations(raw_data, doc_text, "test_doc")
+
+    # All should pass through hierarchy and clinical filtering
+    assert len(result.spans) == 1
+    assert len(result.reasoning_steps) == 1
+    assert len(result.document_annotations) == 1
+    assert result.document_annotations[0].concept.display == "Chest pain"
+
+
+def test_cascade_filter_all_steps_invalid():
+    """Test that all annotations are filtered when all reasoning steps have no spans."""
+    from textractor.api.llm import validate_and_convert_annotations
+
+    raw_data = {
+        "spans": [{"start": 0, "end": 10, "text": "chest pain"}],
+        "reasoning_steps": [
+            {
+                "concept_code": "29857009",
+                "concept_display": "Chest pain",
+                "span_indices": [],  # Invalid - no spans
+            },
+        ],
+        "document_annotations": [
+            {
+                "concept_code": "29857009",
+                "concept_display": "Chest pain",
+                "evidence_span_indices": [],
+                "reasoning_step_indices": [0],  # References the invalid step
+                "category": "symptom",
+            },
+        ],
+    }
+
+    doc_text = "chest pain"
+    result = validate_and_convert_annotations(raw_data, doc_text, "test_doc")
+
+    # Reasoning step filtered (no spans) → document annotation references now-invalid step
+    # → Stage 2 hierarchy filters annotation (no valid reasoning steps)
+    # → span orphaned → removed by cascade
+    assert len(result.reasoning_steps) == 0
+    assert len(result.document_annotations) == 0
     assert len(result.spans) == 0
 
 
@@ -316,7 +489,7 @@ def test_filter_missing_category_treated_as_unknown():
             {
                 "concept_code": "29857009",
                 "concept_display": "Chest pain",
-                "evidence_span_indices": [0],
+                "evidence_span_indices": [],  # No direct span links
                 "reasoning_step_indices": [0],
                 # category field intentionally missing
             },
