@@ -34,6 +34,7 @@ export function App() {
   // Refs for auto-save
   const autoSaveTimeoutRef = useRef<number | null>(null);
   const isSavingRef = useRef(false);
+  const prevSelectedDocIdRef = useRef<string | null>(null);
 
   // Sidebar width and collapse state
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(SIDEBAR.DEFAULT_LEFT_WIDTH);
@@ -47,9 +48,41 @@ export function App() {
     return saved ? parseInt(saved, 10) : FONT_SIZE.DEFAULT;
   });
 
-  const refreshDocuments = () => {
+  const refreshDocuments = useCallback(() => {
     api.listDocuments().then(setDocuments).catch(console.error);
-  };
+  }, []);
+
+  const saveAnnotations = useCallback(async () => {
+    if (!annotations || !selectedDocId || isSavingRef.current) return;
+
+    // Allow saving when unlocking (completed changing from true to false)
+    // Block saving when document is locked and not being unlocked
+    const wasCompleted = originalAnnotations?.completed || false;
+    const isCompleted = annotations.completed;
+    const isUnlocking = wasCompleted && !isCompleted;
+
+    if (isCompleted && !isUnlocking) {
+      // Document is locked and we're not unlocking it, don't save
+      return;
+    }
+
+    isSavingRef.current = true;
+    setSaveError(null);
+    try {
+      await api.saveAnnotations(selectedDocId, annotations);
+      setIsDirty(false);
+      setOriginalAnnotations(deepClone(annotations));
+      refreshDocuments();
+    } catch (err) {
+      // Suppress 403 errors for locked documents
+      const errorStr = String(err);
+      if (!errorStr.includes('403')) {
+        setSaveError(errorStr);
+      }
+    } finally {
+      isSavingRef.current = false;
+    }
+  }, [annotations, selectedDocId, originalAnnotations, refreshDocuments]);
 
   // Compute color mappings for document annotations, spans, and reasoning steps
   const { spanColorMap, docAnnColorMap, stepColorMap } = useMemo(
@@ -63,6 +96,10 @@ export function App() {
 
   useEffect(() => {
     if (!selectedDocId) return;
+
+    // Only load if selectedDocId actually changed
+    if (prevSelectedDocIdRef.current === selectedDocId) return;
+    prevSelectedDocIdRef.current = selectedDocId;
 
     // Auto-save before switching documents
     const loadNewDocument = async () => {
@@ -94,7 +131,7 @@ export function App() {
     };
 
     loadNewDocument();
-  }, [selectedDocId]);
+  }, [selectedDocId, isDirty, annotations, saveAnnotations]);
 
   const handleSpanCreated = (span: Span) => {
     if (!annotations || annotations.completed) return; // Don't create spans in locked documents
@@ -143,7 +180,7 @@ export function App() {
         clearTimeout(autoSaveTimeoutRef.current);
       }
     };
-  }, [isDirty, annotations, isPreAnnotated]);
+  }, [isDirty, annotations, isPreAnnotated, saveAnnotations]);
 
   // Auto-save on page unload/refresh
   useEffect(() => {
@@ -158,39 +195,7 @@ export function App() {
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [isDirty, annotations, selectedDocId]);
-
-  const saveAnnotations = async () => {
-    if (!annotations || !selectedDocId || isSavingRef.current) return;
-
-    // Allow saving when unlocking (completed changing from true to false)
-    // Block saving when document is locked and not being unlocked
-    const wasCompleted = originalAnnotations?.completed || false;
-    const isCompleted = annotations.completed;
-    const isUnlocking = wasCompleted && !isCompleted;
-
-    if (isCompleted && !isUnlocking) {
-      // Document is locked and we're not unlocking it, don't save
-      return;
-    }
-
-    isSavingRef.current = true;
-    setSaveError(null);
-    try {
-      await api.saveAnnotations(selectedDocId, annotations);
-      setIsDirty(false);
-      setOriginalAnnotations(deepClone(annotations));
-      refreshDocuments();
-    } catch (err) {
-      // Suppress 403 errors for locked documents
-      const errorStr = String(err);
-      if (!errorStr.includes('403')) {
-        setSaveError(errorStr);
-      }
-    } finally {
-      isSavingRef.current = false;
-    }
-  };
+  }, [isDirty, annotations, selectedDocId, saveAnnotations]);
 
   const handleRevert = () => {
     if (originalAnnotations) {
