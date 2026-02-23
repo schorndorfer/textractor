@@ -1394,6 +1394,30 @@ input { font-family: inherit; font-size: 13px; }
   cursor: not-allowed;
 }
 
+/* Clear all button */
+.clear-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--danger);
+  background: transparent;
+  color: var(--danger);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  margin-right: 8px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.clear-btn:hover:not(:disabled) {
+  background: var(--danger);
+  color: white;
+}
+
+.clear-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Loading indicator in panel */
 .preannotate-loading {
   padding: 12px;
