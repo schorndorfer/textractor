@@ -795,7 +795,6 @@ input { font-family: inherit; font-size: 13px; }
 
 .panel-section {
   flex-shrink: 0;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   background: var(--sidebar-bg);
@@ -841,7 +840,7 @@ input { font-family: inherit; font-size: 13px; }
 }
 
 /* ── Span list ─────────────────────────────────────────────────────────── */
-.span-list { overflow-y: auto; }
+.span-list { }
 
 .span-item {
   display: flex;
@@ -886,7 +885,7 @@ input { font-family: inherit; font-size: 13px; }
 }
 
 /* ── Item list (steps + annotations) ──────────────────────────────────── */
-.item-list { overflow-y: auto; }
+.item-list { }
 
 .list-item {
   border-bottom: 1px solid var(--sidebar-border);
