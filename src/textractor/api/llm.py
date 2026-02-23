@@ -465,6 +465,36 @@ def validate_and_convert_annotations(
     # Rebuild valid step ID set for Stage 2
     valid_step_ids = {step.id for step in reasoning_steps}
 
+    # Stage 2: Filter document annotations with direct span links or no valid reasoning steps
+    hierarchy_valid_anns = []
+    filtered_anns_no_steps = 0
+    filtered_anns_direct_spans = 0
+
+    for ann in document_annotations:
+        # Check for direct span links (should be empty for AI-generated annotations)
+        if len(ann.evidence_span_ids) > 0:
+            filtered_anns_direct_spans += 1
+            logger.info(f"Hierarchy: filtered annotation with direct span links: {ann.concept.display}")
+            continue
+
+        # Check that annotation references at least one still-valid reasoning step
+        valid_referenced_steps = [sid for sid in ann.reasoning_step_ids if sid in valid_step_ids]
+        if len(valid_referenced_steps) == 0:
+            filtered_anns_no_steps += 1
+            logger.info(f"Hierarchy: filtered annotation with no valid reasoning steps: {ann.concept.display}")
+            continue
+
+        hierarchy_valid_anns.append(ann)
+
+    document_annotations = hierarchy_valid_anns
+
+    if filtered_steps_no_spans > 0 or filtered_anns_no_steps > 0 or filtered_anns_direct_spans > 0:
+        logger.info(
+            f"Hierarchy validation: filtered {filtered_steps_no_spans} reasoning steps (no spans), "
+            f"{filtered_anns_no_steps} document annotations (no reasoning steps), "
+            f"{filtered_anns_direct_spans} document annotations (direct span links)"
+        )
+
     # ===== END HIERARCHY VALIDATION STAGE 1 =====
 
     # Stage 1: Filter non-clinical document annotations
