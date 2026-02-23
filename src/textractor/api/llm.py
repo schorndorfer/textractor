@@ -77,7 +77,7 @@ Be thorough but only include medically significant terms."""
 
     response = client.messages.create(
         model=model,
-        max_tokens=1024,
+        max_tokens=2048,  # Increased for larger documents
         temperature=0.0,
         tools=tools,
         messages=[{"role": "user", "content": prompt}],
@@ -86,7 +86,8 @@ Be thorough but only include medically significant terms."""
     logger.info(f"Term extraction: stop_reason={response.stop_reason}, usage={response.usage}")
 
     if response.stop_reason != "tool_use":
-        raise ValueError("LLM did not return structured output")
+        logger.error(f"LLM stop_reason was '{response.stop_reason}', expected 'tool_use'. Response: {response}")
+        raise ValueError(f"LLM did not return structured output (stop_reason: {response.stop_reason})")
 
     tool_calls = [block for block in response.content if block.type == "tool_use"]
     if not tool_calls:
@@ -250,7 +251,7 @@ Return structured annotations following the tool schema."""
 
     response = client.messages.create(
         model=model,
-        max_tokens=4096,
+        max_tokens=8192,  # Increased for larger documents and more annotations
         temperature=0.0,
         tools=tools,
         messages=[{"role": "user", "content": prompt}],
@@ -259,7 +260,8 @@ Return structured annotations following the tool schema."""
     logger.info(f"Annotation generation: stop_reason={response.stop_reason}, usage={response.usage}")
 
     if response.stop_reason != "tool_use":
-        raise ValueError("LLM did not return structured output")
+        logger.error(f"LLM stop_reason was '{response.stop_reason}', expected 'tool_use'. Response: {response}")
+        raise ValueError(f"LLM did not return structured output (stop_reason: {response.stop_reason})")
 
     tool_calls = [block for block in response.content if block.type == "tool_use"]
     if not tool_calls:
