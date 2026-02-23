@@ -447,6 +447,26 @@ def validate_and_convert_annotations(
         f"{len(invalid_span_indices)} discarded"
     )
 
+    # ===== HIERARCHY VALIDATION =====
+
+    # Stage 1: Filter reasoning steps with no spans
+    hierarchy_valid_steps = []
+    filtered_steps_no_spans = 0
+
+    for step in reasoning_steps:
+        if len(step.span_ids) == 0:
+            filtered_steps_no_spans += 1
+            logger.info(f"Hierarchy: filtered reasoning step with no spans: {step.concept.display}")
+        else:
+            hierarchy_valid_steps.append(step)
+
+    reasoning_steps = hierarchy_valid_steps
+
+    # Rebuild valid step ID set for Stage 2
+    valid_step_ids = {step.id for step in reasoning_steps}
+
+    # ===== END HIERARCHY VALIDATION STAGE 1 =====
+
     # Stage 1: Filter non-clinical document annotations
     clinical_annotations = []
     filtered_count = 0
