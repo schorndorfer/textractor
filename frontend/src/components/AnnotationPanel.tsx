@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { AnnotationFile, DocumentAnnotation, ReasoningStep, Span } from '../types';
 import type { SpanColorMap } from '../App';
 import { DocumentAnnotationList } from './DocumentAnnotationList';
@@ -42,6 +43,19 @@ export function AnnotationPanel({
   preAnnotateError,
 }: Props) {
   const isLocked = annotations.completed;
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+
+  const toggleSection = (section: string) => {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(section)) {
+        next.delete(section);
+      } else {
+        next.add(section);
+      }
+      return next;
+    });
+  };
 
   const updateSpans = (spans: Span[]) => {
     if (isLocked) return; // Prevent edits when completed
@@ -143,13 +157,19 @@ export function AnnotationPanel({
         </div>
       )}
 
-      <section className="panel-section">
-        <h3>Spans ({annotations.spans.length})</h3>
+      <section className={`panel-section${collapsedSections.has('spans') ? ' collapsed' : ''}`}>
+        <h3 onClick={() => toggleSection('spans')}>
+          <span>Spans ({annotations.spans.length})</span>
+          <span className={`section-chevron${collapsedSections.has('spans') ? ' collapsed' : ''}`}>▼</span>
+        </h3>
         <SpanList spans={annotations.spans} onChange={updateSpans} spanColorMap={spanColorMap} onSpanClick={onSpanClick} disabled={isLocked} />
       </section>
 
-      <section className="panel-section">
-        <h3>Reasoning Steps ({annotations.reasoning_steps.length})</h3>
+      <section className={`panel-section${collapsedSections.has('steps') ? ' collapsed' : ''}`}>
+        <h3 onClick={() => toggleSection('steps')}>
+          <span>Reasoning Steps ({annotations.reasoning_steps.length})</span>
+          <span className={`section-chevron${collapsedSections.has('steps') ? ' collapsed' : ''}`}>▼</span>
+        </h3>
         <ReasoningStepList
           steps={annotations.reasoning_steps}
           availableSpans={annotations.spans}
@@ -161,8 +181,11 @@ export function AnnotationPanel({
         />
       </section>
 
-      <section className="panel-section">
-        <h3>Document Annotations ({annotations.document_annotations.length})</h3>
+      <section className={`panel-section${collapsedSections.has('annotations') ? ' collapsed' : ''}`}>
+        <h3 onClick={() => toggleSection('annotations')}>
+          <span>Document Annotations ({annotations.document_annotations.length})</span>
+          <span className={`section-chevron${collapsedSections.has('annotations') ? ' collapsed' : ''}`}>▼</span>
+        </h3>
         <DocumentAnnotationList
           annotations={annotations.document_annotations}
           availableSpans={annotations.spans}
