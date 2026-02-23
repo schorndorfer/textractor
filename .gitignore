@@ -20,29 +20,4 @@ data/terminology/*
 .worktrees/
 
 # MIMIC files
-data/documents/1037976.ann.json
-data/documents/1037976.json
-data/documents/1085643.ann.json
-data/documents/1085643.json
-data/documents/1147394.ann.json
-data/documents/1147394.json
-data/documents/1164402.json
-data/documents/1179089.json
-data/documents/131.json
-data/documents/14677.json
-data/documents/240524.json
-data/documents/250459.json
-data/documents/2902.ann.json
-data/documents/2902.json
-data/documents/30855.json
-data/documents/36252.ann.json
-data/documents/36252.json
-data/documents/37218.json
-data/documents/435241.json
-data/documents/454521.json
-data/documents/527973.ann.json
-data/documents/527973.json
-data/documents/528976.json
-data/documents/535524.json
-data/documents/666956.json
-data/documents/683829.json
+data/documents/*.json
