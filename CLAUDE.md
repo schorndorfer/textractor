@@ -8,7 +8,20 @@ Textractor is a clinical text annotation tool with a FastAPI backend and React/T
 
 ## Common Commands
 
-### Backend
+### Quick Start (Makefile - Recommended)
+
+```bash
+make install       # install all dependencies (backend + frontend)
+make run           # build frontend and run production server (single command!)
+make dev-backend   # run backend in dev mode (port 8000, hot-reload)
+make dev-frontend  # run frontend in dev mode (port 5173)
+make test          # run all tests
+make test-verbose  # run tests with verbose output
+make clean         # remove build artifacts
+make help          # show all available commands
+```
+
+### Backend (Manual)
 
 ```bash
 uv sync                                                     # install/update dependencies
@@ -19,7 +32,7 @@ TEXTRACTOR_DOC_ROOT=./data/documents uv run textractor
 
 FastAPI interactive docs available at `http://localhost:8000/docs` when running.
 
-### Frontend
+### Frontend (Manual)
 
 ```bash
 cd frontend
@@ -31,6 +44,10 @@ npm run build      # production build → frontend/dist/
 ### Testing
 
 ```bash
+make test                              # run all tests (recommended)
+make test-verbose                      # verbose output
+
+# Or use pytest directly:
 uv sync --extra dev                    # install test dependencies (pytest)
 uv run pytest                          # run all tests
 uv run pytest tests/test_snomed.py     # run specific test file
@@ -42,6 +59,14 @@ uv run pytest -k "search"              # run tests matching pattern
 
 ### Dev mode (both together)
 
+**Using Makefile:**
+```
+Terminal 1: make dev-backend
+Terminal 2: make dev-frontend
+Browser:    http://localhost:5173
+```
+
+**Manual:**
 ```
 Terminal 1: TEXTRACTOR_DOC_ROOT=./data/documents uv run textractor
 Terminal 2: cd frontend && npm run dev
@@ -50,6 +75,12 @@ Browser:    http://localhost:5173
 
 ### Production
 
+**Using Makefile (recommended):**
+```bash
+make run    # builds frontend and starts server in one command
+```
+
+**Manual:**
 `npm run build` in `frontend/`, then `uv run textractor` — FastAPI auto-serves `frontend/dist/` via `StaticFiles`.
 
 ## Architecture

@@ -8,6 +8,36 @@ Built with FastAPI + React.
 
 ## Quickstart
 
+### Single-Command Setup (Recommended)
+
+```bash
+# 1. Install dependencies
+make install
+
+# 2. Create a documents directory and add some documents
+mkdir -p data/documents
+cp my_notes/*.json data/documents/
+
+# 3. Build and run (production mode - single command!)
+make run
+
+# Open http://localhost:8000
+```
+
+### Development Mode (Two Terminals)
+
+```bash
+# Terminal 1: Backend with hot-reload
+make dev-backend
+
+# Terminal 2: Frontend with hot-reload
+make dev-frontend
+
+# Open http://localhost:5173
+```
+
+### Manual Setup (Alternative)
+
 ```bash
 # 1. Install backend dependencies
 uv sync
@@ -19,13 +49,13 @@ cd frontend && npm install && cd ..
 mkdir -p data/documents
 cp my_notes/*.json data/documents/
 
-# 4. Start the backend
+# 4. Build frontend
+cd frontend && npm run build && cd ..
+
+# 5. Start the backend (serves built frontend)
 TEXTRACTOR_DOC_ROOT=./data/documents uv run textractor
 
-# 5. In a second terminal, start the frontend
-cd frontend && npm run dev
-
-# Open http://localhost:5173
+# Open http://localhost:8000
 ```
 
 ---
@@ -290,15 +320,13 @@ SNOMED CT is automatically loaded from `data/terminology/SnomedCT/` if present.
 uv sync --extra dev
 
 # Run all tests
-uv run pytest
-
-# Run specific test file
-uv run pytest tests/test_annotations.py
+make test
 
 # Run with verbose output
-uv run pytest -v
+make test-verbose
 
-# Run tests matching a pattern
+# Or use pytest directly
+uv run pytest tests/test_annotations.py
 uv run pytest -k "lock"
 ```
 
@@ -312,6 +340,18 @@ uv run pytest -k "lock"
 
 ## Production Deployment
 
+### Using Makefile (Recommended)
+
+```bash
+# Single command - builds frontend and starts server
+make run
+
+# Or with custom document directory
+DOC_ROOT=/path/to/documents make run
+```
+
+### Manual
+
 ```bash
 # Build the frontend
 cd frontend && npm run build && cd ..
@@ -323,6 +363,17 @@ TEXTRACTOR_DOC_ROOT=/path/to/documents uv run textractor
 The app is then available at `http://localhost:8000`.
 
 For SNOMED CT support, ensure RF2 files are in `data/terminology/SnomedCT/` before first startup.
+
+### Available Make Commands
+
+Run `make help` to see all available commands:
+- `make install` - Install all dependencies
+- `make build` - Build frontend only
+- `make run` - Build and run production server
+- `make dev-backend` - Run backend in dev mode
+- `make dev-frontend` - Run frontend in dev mode
+- `make test` - Run tests
+- `make clean` - Remove build artifacts
 
 ---
 
