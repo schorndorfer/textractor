@@ -212,6 +212,7 @@ export function AnnotationPanel({
           stepColorMap={stepColorMap}
           selectedAnnotationId={selectedAnnotationId}
           annotations={annotations.document_annotations}
+          onAnnotationSelect={onAnnotationSelect}
           disabled={isLocked}
         />
       </section>
