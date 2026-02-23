@@ -186,8 +186,17 @@ def generate_annotations_raw(
                                 "evidence_span_indices": {"type": "array", "items": {"type": "integer"}},
                                 "reasoning_step_indices": {"type": "array", "items": {"type": "integer"}},
                                 "note": {"type": "string"},
+                                "category": {
+                                    "type": "string",
+                                    "enum": [
+                                        "problem", "procedure", "medication", "lab", "symptom",
+                                        "diagnosis", "finding", "sign", "device", "allergy",
+                                        "demographic", "administrative", "temporal",
+                                        "social_history", "other"
+                                    ],
+                                },
                             },
-                            "required": ["concept_code", "concept_display"],
+                            "required": ["concept_code", "concept_display", "category"],
                         },
                     },
                 },
