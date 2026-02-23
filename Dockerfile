@@ -5,7 +5,7 @@ WORKDIR /app/frontend
 
 # Copy package files and install dependencies
 COPY frontend/package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
 # Copy frontend source and build
 COPY frontend/ ./
@@ -26,11 +26,11 @@ RUN apt-get update && \
 # Add uv to PATH
 ENV PATH="/root/.cargo/bin:$PATH"
 
-# Copy Python dependencies file
-COPY pyproject.toml ./
+# Copy Python dependencies files
+COPY pyproject.toml uv.lock ./
 
-# Install Python dependencies
-RUN uv sync --no-dev
+# Install Python dependencies with locked versions
+RUN uv sync --frozen --no-dev
 
 # Copy backend source
 COPY src/ ./src/
