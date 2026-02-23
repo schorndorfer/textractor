@@ -435,6 +435,41 @@ def test_valid_hierarchy_passes():
     assert result.document_annotations[0].concept.display == "Chest pain"
 
 
+def test_cascade_filter_all_steps_invalid():
+    """Test that all annotations are filtered when all reasoning steps have no spans."""
+    from textractor.api.llm import validate_and_convert_annotations
+
+    raw_data = {
+        "spans": [{"start": 0, "end": 10, "text": "chest pain"}],
+        "reasoning_steps": [
+            {
+                "concept_code": "29857009",
+                "concept_display": "Chest pain",
+                "span_indices": [],  # Invalid - no spans
+            },
+        ],
+        "document_annotations": [
+            {
+                "concept_code": "29857009",
+                "concept_display": "Chest pain",
+                "evidence_span_indices": [],
+                "reasoning_step_indices": [0],  # References the invalid step
+                "category": "symptom",
+            },
+        ],
+    }
+
+    doc_text = "chest pain"
+    result = validate_and_convert_annotations(raw_data, doc_text, "test_doc")
+
+    # Reasoning step filtered (no spans) → document annotation references now-invalid step
+    # → Stage 2 hierarchy filters annotation (no valid reasoning steps)
+    # → span orphaned → removed by cascade
+    assert len(result.reasoning_steps) == 0
+    assert len(result.document_annotations) == 0
+    assert len(result.spans) == 0
+
+
 def test_filter_missing_category_treated_as_unknown():
     """Test that annotations without category are filtered out."""
     from textractor.api.llm import validate_and_convert_annotations
