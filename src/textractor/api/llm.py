@@ -10,6 +10,20 @@ from .models import AnnotationFile, Concept, DocumentAnnotation, ReasoningStep, 
 
 logger = logging.getLogger(__name__)
 
+# Clinical categories to keep when filtering annotations
+CLINICAL_CATEGORIES = {
+    "problem",
+    "procedure",
+    "medication",
+    "lab",
+    "symptom",
+    "diagnosis",
+    "finding",
+    "sign",
+    "device",
+    "allergy",
+}
+
 
 def extract_medical_terms(text: str, api_key: str, model: str = "claude-sonnet-4-5") -> list[str]:
     """
