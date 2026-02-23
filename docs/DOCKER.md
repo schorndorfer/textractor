@@ -125,9 +125,9 @@ services:
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
 ```
+
+**Note:** Health checks are defined in the Dockerfile and automatically inherited by Docker Compose. No need to redefine them in `docker-compose.yml`.
 
 ### Common Commands
 
@@ -445,7 +445,9 @@ gcloud run deploy textractor \
   --allow-unauthenticated
 ```
 
-**Note:** Cloud Run currently has limited NFS volume support. For production with persistent volumes, consider using GKE (Google Kubernetes Engine) instead.
+**Important:** Cloud Run is a stateless platform and does NOT support persistent volumes (including NFS/Filestore). Each container instance has ephemeral storage only, and data will be lost when instances scale down or restart.
+
+**For production deployments requiring persistent storage** (document annotations, SNOMED database), use **Google Kubernetes Engine (GKE)** instead, which provides full support for persistent volumes via Cloud Filestore or Persistent Disks.
 
 ---
 
