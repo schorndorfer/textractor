@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  textractor:
+    build: .
+    container_name: textractor
+    ports:
+      - "8000:8000"
+    volumes:
+      # Docker-managed volume for user documents
+      - textractor-data:/app/data/documents
+      # Host mount for SNOMED terminology (read-only)
+      - ./data/terminology:/app/data/terminology:ro
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - TEXTRACTOR_DOC_ROOT=/app/data/documents
+      - TEXTRACTOR_LLM_MODEL=${TEXTRACTOR_LLM_MODEL:-claude-sonnet-4-5}
+      - TEXTRACTOR_FUZZY_THRESHOLD=${TEXTRACTOR_FUZZY_THRESHOLD:-90}
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  textractor-data:
+    name: textractor-data
