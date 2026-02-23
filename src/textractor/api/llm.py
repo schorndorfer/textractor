@@ -77,7 +77,7 @@ Be thorough but only include medically significant terms."""
 
     response = client.messages.create(
         model=model,
-        max_tokens=2048,  # Increased for larger documents
+        max_tokens=4096,  # Increased for very large documents
         temperature=0.0,
         tools=tools,
         messages=[{"role": "user", "content": prompt}],
@@ -85,13 +85,20 @@ Be thorough but only include medically significant terms."""
 
     logger.info(f"Term extraction: stop_reason={response.stop_reason}, usage={response.usage}")
 
-    if response.stop_reason != "tool_use":
-        logger.error(f"LLM stop_reason was '{response.stop_reason}', expected 'tool_use'. Response: {response}")
+    # Check for tool calls first
+    tool_calls = [block for block in response.content if block.type == "tool_use"]
+
+    if not tool_calls:
+        logger.error(f"No tool calls found. stop_reason={response.stop_reason}, response={response}")
+        raise ValueError("No tool calls found in LLM response")
+
+    # Accept tool_use or max_tokens if we have a valid tool call
+    if response.stop_reason not in ("tool_use", "max_tokens"):
+        logger.error(f"LLM stop_reason was '{response.stop_reason}', expected 'tool_use' or 'max_tokens'. Response: {response}")
         raise ValueError(f"LLM did not return structured output (stop_reason: {response.stop_reason})")
 
-    tool_calls = [block for block in response.content if block.type == "tool_use"]
-    if not tool_calls:
-        raise ValueError("No tool calls found in LLM response")
+    if response.stop_reason == "max_tokens":
+        logger.warning(f"Term extraction hit max_tokens limit but found valid tool call, proceeding anyway")
 
     tool_input = tool_calls[0].input
     terms = tool_input.get("terms", [])
@@ -251,7 +258,7 @@ Return structured annotations following the tool schema."""
 
     response = client.messages.create(
         model=model,
-        max_tokens=8192,  # Increased for larger documents and more annotations
+        max_tokens=16384,  # Increased for very large documents with many annotations
         temperature=0.0,
         tools=tools,
         messages=[{"role": "user", "content": prompt}],
@@ -259,13 +266,20 @@ Return structured annotations following the tool schema."""
 
     logger.info(f"Annotation generation: stop_reason={response.stop_reason}, usage={response.usage}")
 
-    if response.stop_reason != "tool_use":
-        logger.error(f"LLM stop_reason was '{response.stop_reason}', expected 'tool_use'. Response: {response}")
+    # Check for tool calls first
+    tool_calls = [block for block in response.content if block.type == "tool_use"]
+
+    if not tool_calls:
+        logger.error(f"No tool calls found. stop_reason={response.stop_reason}, response={response}")
+        raise ValueError("No tool calls found in LLM response")
+
+    # Accept tool_use or max_tokens if we have a valid tool call
+    if response.stop_reason not in ("tool_use", "max_tokens"):
+        logger.error(f"LLM stop_reason was '{response.stop_reason}', expected 'tool_use' or 'max_tokens'. Response: {response}")
         raise ValueError(f"LLM did not return structured output (stop_reason: {response.stop_reason})")
 
-    tool_calls = [block for block in response.content if block.type == "tool_use"]
-    if not tool_calls:
-        raise ValueError("No tool calls found in LLM response")
+    if response.stop_reason == "max_tokens":
+        logger.warning(f"Annotation generation hit max_tokens limit but found valid tool call, proceeding anyway")
 
     annotations = tool_calls[0].input
 
