@@ -88,11 +88,28 @@ Text spans  →  Reasoning steps  →  Document annotations
 
 **3. Create document annotations** — Search for the final code (e.g. "Acute myocardial infarction"), link it to evidence spans and the reasoning steps that led to it. Click on a document annotation to view its interactive evidence graph.
 
-Annotations are **automatically saved** as you work (2-second debounce). Click **Revert** to discard unsaved changes.
+### AI Pre-Annotation
+
+Click **✨ Pre-annotate** to generate AI annotations using Claude. The system:
+- Extracts medical terms from the document
+- Searches SNOMED CT for relevant concepts
+- Generates structured annotations (spans → reasoning steps → document annotations)
+- Filters to clinical concepts only (problems, procedures, medications, labs, symptoms, etc.)
+- Enforces strict hierarchy (every annotation traces back through reasoning steps to text evidence)
+
+AI-generated content is marked with ✨ badges and loads as unsaved changes for review. Make any edit to trigger auto-save, or click **Revert** to discard.
+
+Annotations are **automatically saved** as you work (2-second debounce). Click **Revert** to discard unsaved changes. Click **🗑️ Clear All** to delete all annotations with confirmation.
 
 ### UI Features
 
+- **✨ AI Pre-Annotation** — Generate structured annotations automatically using Claude
+  - Extracts clinical concepts and creates evidence-linked annotations
+  - Filters to clinical categories (problems, procedures, medications, labs, etc.)
+  - AI-generated content marked with ✨ badges
+  - Loads as unsaved changes for manual review
 - **Auto-Save** — Annotations save automatically after you stop editing
+- **🗑️ Clear All** — Delete all annotations with confirmation dialog
 - **Document Locking** — Mark documents as "Completed" to prevent accidental modifications
   - Lock icon (🔒) displayed when completed
   - All editing disabled with clear visual feedback
@@ -186,6 +203,7 @@ The backend exposes a REST API documented interactively at `http://localhost:800
 | `DELETE` | `/api/documents/{id}` | Delete a document and its annotations |
 | `GET` | `/api/documents/{id}/annotations` | Get current annotations (empty structure if none) |
 | `PUT` | `/api/documents/{id}/annotations` | Save annotations (validates all ID references, enforces locks) |
+| `POST` | `/api/documents/{id}/preannotate` | Generate AI annotations using Claude (requires `ANTHROPIC_API_KEY`) |
 | `GET` | `/api/terminology/search?q=&limit=` | Search SNOMED CT concepts by full-text query |
 | `GET` | `/api/terminology/info` | Terminology load status and concept count |
 
@@ -257,6 +275,9 @@ textractor/
 | Environment Variable | Default | Description |
 |---|---|---|
 | `TEXTRACTOR_DOC_ROOT` | `./data/documents` | Directory scanned recursively for `*.json` documents |
+| `ANTHROPIC_API_KEY` | *(required for AI)* | API key for Claude AI pre-annotation |
+| `TEXTRACTOR_LLM_MODEL` | `claude-sonnet-4-5` | Model name for AI annotation generation |
+| `TEXTRACTOR_FUZZY_THRESHOLD` | `90` | Minimum similarity (0-100) for span offset recovery |
 
 SNOMED CT is automatically loaded from `data/terminology/SnomedCT/` if present.
 
@@ -307,6 +328,10 @@ For SNOMED CT support, ensure RF2 files are in `data/terminology/SnomedCT/` befo
 
 ## Recent Features
 
+- ✅ **AI Pre-Annotation** - Generate structured annotations automatically using Claude
+- ✅ **Clinical Filtering** - AI annotations filtered to clinical concepts only
+- ✅ **Hierarchy Enforcement** - Strict evidence traceability (spans → steps → annotations)
+- ✅ **Clear All Button** - Delete all annotations with confirmation
 - ✅ **SNOMED CT Integration** - Full-text search across 2.6M+ clinical concepts
 - ✅ **SQLite FTS5** - Persistent, low-memory terminology search
 - ✅ **Auto-Save** - Annotations save automatically with revert capability

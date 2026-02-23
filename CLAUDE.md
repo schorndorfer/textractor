@@ -116,6 +116,24 @@ Pre-annotation enforces strict hierarchical progression:
 
 Check backend logs for "Hierarchy validation:" output to see filtering statistics.
 
+### Clear All Button
+
+The annotation panel includes a **🗑️ Clear All** button for deleting all annotations.
+
+**Location**: Between the Pre-annotate and Revert buttons in the annotation panel header
+
+**Behavior**:
+- Deletes all spans, reasoning steps, and document annotations
+- Shows confirmation dialog: "This will delete all annotations... This cannot be undone. Continue?"
+- Disabled when document is locked (`completed === true`)
+- Disabled when no annotations exist (all three arrays empty)
+- Triggers normal auto-save workflow after clearing (2-second debounce)
+- User can still revert within 2 seconds before auto-save persists
+
+**Implementation**: `frontend/src/components/AnnotationPanel.tsx:handleClear()`
+
+**Styling**: Red/danger color scheme (transparent background with red border, red background on hover)
+
 ### SNOMED CT Terminology (`src/textractor/terminology/`)
 
 **SNOMED CT integration** - place SNOMED RF2 files in `data/terminology/SnomedCT/` and they will be automatically loaded at startup.
