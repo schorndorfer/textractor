@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from textractor.api.main import create_app
-from textractor.api.dependencies import init_store, init_terminology
+from textractor.api.dependencies import init_annotation_store, init_store, init_terminology
 from textractor.api.models import Document, AnnotationFile, Span
 
 
@@ -20,6 +20,7 @@ def client():
 
         # Initialize app dependencies
         init_store(doc_root)
+        init_annotation_store(doc_root / "test.db")
         init_terminology(snomed_dir=None)  # No SNOMED needed for these tests
 
         app = create_app()
@@ -39,13 +40,27 @@ def client_with_docs():
         doc2 = doc_root / "doc_002.json"
         doc2.write_text('{"id": "doc_002", "text": "Second document text", "metadata": {"author": "Bob"}}')
 
-        # Add annotations to doc_001
-        ann1 = doc_root / "doc_001.ann.json"
-        ann1.write_text('{"doc_id": "doc_001", "spans": [], "reasoning_steps": [], "document_annotations": [], "completed": false}')
-
         # Initialize app dependencies
         init_store(doc_root)
+        init_annotation_store(doc_root / "test.db")
         init_terminology(snomed_dir=None)
+
+        # Add annotations to doc_001 via SQLite
+        from textractor.api.dependencies import get_annotation_store
+        from textractor.api.models import AnnotationFile
+        ann_store = get_annotation_store()
+        ann_store.save_annotations(
+            doc_id="doc_001",
+            annotations=AnnotationFile(
+                doc_id="doc_001",
+                spans=[],
+                reasoning_steps=[],
+                document_annotations=[],
+                completed=False,
+            ),
+            annotator="default",
+            source="human",
+        )
 
         app = create_app()
         yield TestClient(app)

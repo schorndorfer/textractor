@@ -82,7 +82,7 @@ npm run build      # production build → frontend/dist/
 
 ### Testing
 
-**Backend tests (116 tests):**
+**Backend tests (129 tests):**
 ```bash
 make test                              # run all tests (recommended)
 make test-verbose                      # verbose output
@@ -143,11 +143,12 @@ make run    # builds frontend and starts server in one command
 | File | Role |
 |---|---|
 | `models.py` | All Pydantic models: `Span`, `ReasoningStep` (with optional `note` field), `DocumentAnnotation`, `AnnotationFile`, `Document`, `DocumentSummary`, `TerminologyConcept`, `TerminologyInfo` |
-| `storage.py` | `DocumentStore`: recursively scans `TEXTRACTOR_DOC_ROOT` for `*.json` docs; companion annotations stored flat as `{doc_id}.ann.json` in root |
+| `storage.py` | `DocumentStore`: recursively scans `TEXTRACTOR_DOC_ROOT` for `*.json` docs (document files only, not annotations) |
+| `annotation_store.py` | `SQLiteAnnotationStore`: SQLite-based annotation storage with version history and multi-user support. Append-only design with WAL mode for concurrent access. |
 | `enhanced_terminology.py` | `EnhancedTerminologyIndex`: SNOMED CT terminology search using SQLite FTS5. Converts SNOMED results to `TerminologyConcept` format. |
-| `dependencies.py` | Module-level singletons (`_store`, `_terminology`) initialized in the FastAPI lifespan. Loads SNOMED from `data/terminology/SnomedCT/` if available. |
-| `routers/documents.py` | `GET /api/documents`, `POST /api/documents/upload`, `GET /api/documents/{id}`, `PATCH /api/documents/{id}/metadata`, `DELETE /api/documents/{id}` |
-| `routers/annotations.py` | `GET/PUT /api/documents/{id}/annotations` — PUT validates referential integrity (span/step IDs must exist) |
+| `dependencies.py` | Module-level singletons (`_store`, `_annotation_store`, `_terminology`) initialized in the FastAPI lifespan. Loads SNOMED from `data/terminology/SnomedCT/` if available. |
+| `routers/documents.py` | `GET /api/documents`, `POST /api/documents/upload`, `GET /api/documents/{id}`, `PATCH /api/documents/{id}/metadata`, `DELETE /api/documents/{id}`. Uses annotation store for status checks and deletion. |
+| `routers/annotations.py` | `GET/PUT /api/documents/{id}/annotations` — PUT validates referential integrity (span/step IDs must exist). Also includes `GET /api/documents/{id}/annotations/history` (version history) and `POST /api/documents/{id}/annotations/revert/{version}` (version rollback). |
 | `routers/preannotate.py` | `POST /api/documents/{id}/preannotate` — generates AI annotations using Claude, validates spans via rapidfuzz, returns AnnotationFile without auto-save |
 | `routers/terminology.py` | `GET /api/terminology/search?q=`, `GET /api/terminology/info`. Provides SNOMED CT full-text search. |
 | `llm.py` | Two-stage LLM pipeline: `extract_medical_terms` (Stage 1), `generate_annotations_raw` (Stage 2), `validate_and_convert_annotations` (span recovery + AnnotationFile conversion) |
@@ -260,7 +261,7 @@ Input document (`{doc_id}.json`):
 { "id": "doc_001", "text": "...", "metadata": {} }
 ```
 
-Annotation output (`{doc_id}.ann.json`):
+Annotation format (stored in SQLite):
 ```json
 {
   "doc_id": "doc_001",
@@ -280,6 +281,47 @@ Annotation output (`{doc_id}.ann.json`):
 }
 ```
 
+### Annotation Storage
+
+**SQLite-based storage** with version history and multi-user support:
+
+**Architecture:**
+- Annotations stored in SQLite database (default: `./data/textractor.db`)
+- Append-only version history - every save creates a new version
+- Multi-user support via `annotator` parameter (default: "default")
+- WAL (Write-Ahead Logging) mode for concurrent read/write access
+- JSON blob storage for flexibility
+
+**Features:**
+- **Version history**: Every annotation save creates a new version with timestamp
+- **Version rollback**: Revert to any previous version via API
+- **Multi-user**: Multiple annotators can work on the same document independently
+- **Source tracking**: Tracks whether annotations are from "human" or "model" (AI)
+- **Model tracking**: Records which model generated AI annotations
+
+**Migration from legacy `.ann.json` files:**
+
+If upgrading from a previous version that used `.ann.json` sidecar files:
+
+```bash
+# Dry-run to preview changes
+uv run textractor migrate-annotations --dry-run
+
+# Migrate and archive original files
+uv run textractor migrate-annotations --archive
+
+# Verbose output
+uv run textractor migrate-annotations --archive --verbose
+```
+
+**Options:**
+- `--dry-run`: Preview what would be migrated without making changes
+- `--archive`: Move original `.ann.json` files to `.ann.json.bak` after successful import
+- `--annotator NAME`: Set annotator name for imported annotations (default: "default")
+- `--verbose`: Show detailed progress
+
+All legacy annotations are imported as version 1 with `source="human"`.
+
 ### Environment variables
 
 #### Server Configuration
@@ -295,6 +337,7 @@ Annotation output (`{doc_id}.ann.json`):
 | Variable | Default | Description |
 |---|---|---|
 | `TEXTRACTOR_DOC_ROOT` | `./data/documents` | Directory scanned recursively for `*.json` document files |
+| `TEXTRACTOR_DB_PATH` | `./data/textractor.db` | SQLite database path for annotation storage with version history |
 | `TEXTRACTOR_SNOMED_DIR` | `./data/terminology/SnomedCT` | Directory containing SNOMED CT RF2 files |
 
 #### LLM Configuration

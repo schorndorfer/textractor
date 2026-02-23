@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from textractor.api.dependencies import init_store, init_terminology
+from textractor.api.dependencies import init_annotation_store, init_store, init_terminology
 from textractor.api.main import create_app
 
 
@@ -14,6 +14,7 @@ def client(tmp_path):
     """Create test client with temporary document storage"""
     os.environ["ANTHROPIC_API_KEY"] = "test-key"
     init_store(tmp_path)
+    init_annotation_store(tmp_path / "test.db")
     init_terminology(snomed_dir=None)
     app = create_app()
     return TestClient(app)
@@ -39,6 +40,7 @@ def test_preannotate_missing_api_key(tmp_path):
     )
 
     init_store(tmp_path)
+    init_annotation_store(tmp_path / "test.db")
     init_terminology(snomed_dir=None)
     app = create_app()
     client = TestClient(app)
@@ -57,19 +59,24 @@ def test_preannotate_document_not_found(client):
     assert response.status_code == 404
 
 
-def test_preannotate_document_locked(client, sample_doc, tmp_path):
+def test_preannotate_document_locked(client, sample_doc):
     """Test 403 when document is completed"""
-    ann_path = tmp_path / f"{sample_doc}.ann.json"
-    ann_path.write_text(
-        json.dumps(
-            {
-                "doc_id": sample_doc,
-                "spans": [],
-                "reasoning_steps": [],
-                "document_annotations": [],
-                "completed": True,
-            }
-        )
+    from textractor.api.dependencies import get_annotation_store
+    from textractor.api.models import AnnotationFile
+
+    # Mark document as completed in SQLite
+    ann_store = get_annotation_store()
+    ann_store.save_annotations(
+        doc_id=sample_doc,
+        annotations=AnnotationFile(
+            doc_id=sample_doc,
+            spans=[],
+            reasoning_steps=[],
+            document_annotations=[],
+            completed=True,
+        ),
+        annotator="default",
+        source="human",
     )
 
     response = client.post(f"/api/documents/{sample_doc}/preannotate")

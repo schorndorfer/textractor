@@ -21,3 +21,11 @@ data/terminology/*
 
 # MIMIC files
 data/documents/*.json
+
+# Backup files from migration
+*.bak
+
+# SQLite database files (user data)
+*.db
+*.db-shm
+*.db-wal

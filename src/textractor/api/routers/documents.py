@@ -7,7 +7,8 @@ import logging
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from ..dependencies import get_store
+from ..annotation_store import SQLiteAnnotationStore
+from ..dependencies import get_annotation_store, get_store
 from ..models import Document, DocumentSummary
 from ..storage import DocumentStore
 
@@ -17,14 +18,28 @@ router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 
 @router.get("", response_model=list[DocumentSummary])
-def list_documents(store: DocumentStore = Depends(get_store)) -> list[DocumentSummary]:
-    return store.list_documents()
+def list_documents(
+    doc_store: DocumentStore = Depends(get_store),
+    ann_store: SQLiteAnnotationStore = Depends(get_annotation_store),
+    annotator: str = "default",
+) -> list[DocumentSummary]:
+    """List all documents with annotation status from SQLite."""
+    documents = doc_store.list_documents()
+
+    # Update annotation status from SQLite (ignoring file-based status)
+    for doc in documents:
+        doc.is_annotated = ann_store.is_annotated(doc.id, annotator=annotator)
+        doc.is_completed = ann_store.is_completed(doc.id, annotator=annotator)
+
+    return documents
 
 
 @router.post("/upload", response_model=list[DocumentSummary])
 async def upload_documents(
     files: list[UploadFile] = File(...),
-    store: DocumentStore = Depends(get_store),
+    annotator: str = "default",
+    doc_store: DocumentStore = Depends(get_store),
+    ann_store: SQLiteAnnotationStore = Depends(get_annotation_store),
 ) -> list[DocumentSummary]:
     """Upload one or more document JSON files."""
     summaries: list[DocumentSummary] = []
@@ -40,22 +55,15 @@ async def upload_documents(
             data = json.loads(content)
             doc = Document.model_validate(data)
 
-            if store.document_exists(doc.id):
+            if doc_store.document_exists(doc.id):
                 errors.append(f"{file.filename}: Document '{doc.id}' already exists")
                 continue
 
-            store.save_document(doc)
+            doc_store.save_document(doc)
 
-            # Check if annotations exist
-            ann_path = store._ann_path(doc.id)
-            is_annotated = ann_path.exists()
-            is_completed = False
-            if is_annotated:
-                try:
-                    ann = store.get_annotations(doc.id)
-                    is_completed = ann.completed
-                except Exception:
-                    logger.warning("Could not read annotations for %s", doc.id)
+            # Check annotation status from SQLite
+            is_annotated = ann_store.is_annotated(doc.id, annotator=annotator)
+            is_completed = ann_store.is_completed(doc.id, annotator=annotator)
 
             summaries.append(
                 DocumentSummary(
@@ -110,15 +118,25 @@ def update_document_metadata(
 
 
 @router.delete("/{doc_id}")
-def delete_document(doc_id: str, store: DocumentStore = Depends(get_store)) -> dict:
-    """Delete a document and its annotations."""
-    doc_path = store._doc_path(doc_id)
-    ann_path = store._ann_path(doc_id)
+def delete_document(
+    doc_id: str,
+    doc_store: DocumentStore = Depends(get_store),
+    ann_store: SQLiteAnnotationStore = Depends(get_annotation_store),
+) -> dict:
+    """Delete a document and its annotations (from both filesystem and SQLite)."""
+    doc_path = doc_store._doc_path(doc_id)
 
     if not doc_path.exists():
         raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
 
+    # Delete document file
     doc_path.unlink()
+
+    # Delete annotations from SQLite (all annotators)
+    ann_store.delete_annotations(doc_id)
+
+    # Also delete legacy .ann.json file if it exists
+    ann_path = doc_store._ann_path(doc_id)
     if ann_path.exists():
         ann_path.unlink()
 
