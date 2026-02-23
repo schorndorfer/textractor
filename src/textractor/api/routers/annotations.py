@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from ..dependencies import get_store
+from ..annotation_store import SQLiteAnnotationStore
+from ..dependencies import get_annotation_store, get_store
 from ..models import AnnotationFile
 from ..storage import DocumentStore
 
@@ -45,20 +46,32 @@ def _validate_referential_integrity(ann: AnnotationFile) -> None:
 
 @router.get("/{doc_id}/annotations", response_model=AnnotationFile)
 def get_annotations(
-    doc_id: str, store: DocumentStore = Depends(get_store)
+    doc_id: str,
+    annotator: str = "default",
+    doc_store: DocumentStore = Depends(get_store),
+    ann_store: SQLiteAnnotationStore = Depends(get_annotation_store),
 ) -> AnnotationFile:
-    if not store.document_exists(doc_id):
+    """Get the current annotations for a document."""
+    if not doc_store.document_exists(doc_id):
         raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
-    return store.get_annotations(doc_id)
+
+    annotations = ann_store.get_annotations(doc_id, annotator=annotator)
+    if annotations is None:
+        # Return empty annotations if none exist
+        return AnnotationFile(doc_id=doc_id, completed=False)
+    return annotations
 
 
 @router.put("/{doc_id}/annotations", response_model=AnnotationFile)
 def save_annotations(
     doc_id: str,
     ann: AnnotationFile,
-    store: DocumentStore = Depends(get_store),
+    annotator: str = "default",
+    doc_store: DocumentStore = Depends(get_store),
+    ann_store: SQLiteAnnotationStore = Depends(get_annotation_store),
 ) -> AnnotationFile:
-    if not store.document_exists(doc_id):
+    """Save annotations as a new version."""
+    if not doc_store.document_exists(doc_id):
         raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
     if ann.doc_id != doc_id:
         raise HTTPException(
@@ -66,13 +79,44 @@ def save_annotations(
         )
 
     # Prevent modifications to completed documents (except unchecking completed status)
-    existing = store.get_annotations(doc_id)
-    if existing.completed and ann.completed:
+    if ann_store.is_completed(doc_id, annotator=annotator) and ann.completed:
         raise HTTPException(
             status_code=403,
             detail="Cannot modify annotations for a completed document. Uncheck 'Completed' first to make changes.",
         )
 
     _validate_referential_integrity(ann)
-    store.save_annotations(ann)
+    ann_store.save_annotations(doc_id, ann, annotator=annotator, source="human")
     return ann
+
+
+@router.get("/{doc_id}/annotations/history")
+def get_annotation_history(
+    doc_id: str,
+    annotator: str = "default",
+    doc_store: DocumentStore = Depends(get_store),
+    ann_store: SQLiteAnnotationStore = Depends(get_annotation_store),
+) -> list[dict]:
+    """Get version history for a document's annotations."""
+    if not doc_store.document_exists(doc_id):
+        raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
+
+    return ann_store.get_history(doc_id, annotator=annotator)
+
+
+@router.post("/{doc_id}/annotations/revert/{version}", response_model=AnnotationFile)
+def revert_to_version(
+    doc_id: str,
+    version: int,
+    annotator: str = "default",
+    doc_store: DocumentStore = Depends(get_store),
+    ann_store: SQLiteAnnotationStore = Depends(get_annotation_store),
+) -> AnnotationFile:
+    """Revert to a specific version of annotations."""
+    if not doc_store.document_exists(doc_id):
+        raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
+
+    try:
+        return ann_store.revert_to_version(doc_id, version, annotator=annotator)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))

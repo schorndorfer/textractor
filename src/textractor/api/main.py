@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from .dependencies import init_store, init_terminology
+from .dependencies import init_annotation_store, init_store, init_terminology
 from .routers import annotations, documents, preannotate
 from .routers import terminology as terminology_router
 
@@ -20,7 +20,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     snomed_dir_path = os.environ.get("TEXTRACTOR_SNOMED_DIR", "./data/terminology/SnomedCT")
     snomed_dir = Path(snomed_dir_path) if snomed_dir_path else None
 
+    # Initialize document store (for document files only)
     init_store(doc_root)
+
+    # Initialize annotation store (SQLite database for annotations)
+    db_path = Path(os.environ.get("TEXTRACTOR_DB_PATH", "./data/textractor.db"))
+    init_annotation_store(db_path)
+
+    # Initialize terminology index
     init_terminology(snomed_dir=snomed_dir)
     yield
 

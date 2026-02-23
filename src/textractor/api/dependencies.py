@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+from .annotation_store import SQLiteAnnotationStore
 from .enhanced_terminology import EnhancedTerminologyIndex
 from .storage import DocumentStore
 
@@ -11,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 _store: Optional[DocumentStore] = None
 _terminology: Optional[EnhancedTerminologyIndex] = None
+_annotation_store: Optional[SQLiteAnnotationStore] = None
 
 
 def init_store(root: Path) -> None:
@@ -55,3 +57,17 @@ def get_terminology() -> EnhancedTerminologyIndex:
     if _terminology is None:
         raise RuntimeError("Terminology index not initialized")
     return _terminology
+
+
+def init_annotation_store(db_path: Path) -> None:
+    """Initialize SQLite annotation store."""
+    global _annotation_store
+    _annotation_store = SQLiteAnnotationStore(db_path)
+    logger.info("Initialized annotation store at %s", db_path)
+
+
+def get_annotation_store() -> SQLiteAnnotationStore:
+    """Get the annotation store singleton."""
+    if _annotation_store is None:
+        raise RuntimeError("Annotation store not initialized")
+    return _annotation_store

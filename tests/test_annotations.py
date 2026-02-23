@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from textractor.api.main import create_app
-from textractor.api.dependencies import init_store, init_terminology
+from textractor.api.dependencies import init_annotation_store, init_store, init_terminology
 from textractor.api.models import AnnotationFile, Span, ReasoningStep, DocumentAnnotation, Concept
 
 
@@ -22,6 +22,7 @@ def client():
 
         # Initialize app dependencies
         init_store(doc_root)
+        init_annotation_store(doc_root / "test.db")
         init_terminology(snomed_dir=None)  # No SNOMED needed for these tests
 
         app = create_app()

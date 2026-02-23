@@ -5,7 +5,8 @@ import os
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from ..dependencies import get_store, get_terminology
+from ..annotation_store import SQLiteAnnotationStore
+from ..dependencies import get_annotation_store, get_store, get_terminology
 from ..enhanced_terminology import EnhancedTerminologyIndex
 from ..llm import extract_medical_terms, generate_annotations_raw, validate_and_convert_annotations
 from ..models import AnnotationFile
@@ -19,7 +20,9 @@ router = APIRouter(prefix="/api/documents", tags=["preannotate"])
 @router.post("/{doc_id}/preannotate", response_model=AnnotationFile)
 def preannotate_document(
     doc_id: str,
-    store: DocumentStore = Depends(get_store),
+    annotator: str = "default",
+    doc_store: DocumentStore = Depends(get_store),
+    ann_store: SQLiteAnnotationStore = Depends(get_annotation_store),
     terminology: EnhancedTerminologyIndex = Depends(get_terminology),
 ) -> AnnotationFile:
     """
@@ -57,19 +60,18 @@ def preannotate_document(
         )
 
     # Check document exists
-    if not store.document_exists(doc_id):
+    if not doc_store.document_exists(doc_id):
         raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
 
     # Check document isn't locked
-    existing_annotations = store.get_annotations(doc_id)
-    if existing_annotations.completed:
+    if ann_store.is_completed(doc_id, annotator=annotator):
         raise HTTPException(
             status_code=403,
             detail="Cannot pre-annotate a completed document",
         )
 
     # Get document text
-    doc = store.get_document(doc_id)
+    doc = doc_store.get_document(doc_id)
     if not doc:
         raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
 

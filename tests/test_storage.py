@@ -1,4 +1,4 @@
-"""Tests for document storage layer."""
+"""Tests for document storage layer (document-only operations)."""
 import json
 import tempfile
 from pathlib import Path
@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from textractor.api.storage import DocumentStore
-from textractor.api.models import AnnotationFile, Document, Span, ReasoningStep, DocumentAnnotation, Concept
+from textractor.api.models import Document
 
 
 @pytest.fixture
@@ -33,26 +33,6 @@ def store_with_docs():
         store.save_document(doc1)
         store.save_document(doc2)
         store.save_document(doc3)
-
-        # Add annotations to doc_001 (incomplete)
-        ann1 = AnnotationFile(
-            doc_id="doc_001",
-            spans=[Span(id="span_1", start=0, end=5, text="First")],
-            reasoning_steps=[],
-            document_annotations=[],
-            completed=False,
-        )
-        store.save_annotations(ann1)
-
-        # Add annotations to doc_002 (completed)
-        ann2 = AnnotationFile(
-            doc_id="doc_002",
-            spans=[Span(id="span_2", start=0, end=6, text="Second")],
-            reasoning_steps=[],
-            document_annotations=[],
-            completed=True,
-        )
-        store.save_annotations(ann2)
 
         yield store
 
@@ -104,19 +84,16 @@ class TestListDocuments:
         assert doc_map["doc_003"].metadata == {}
 
     def test_annotation_status(self, store_with_docs):
-        """Test that annotation status is correctly reported."""
+        """Test that annotation status is set to False (populated by caller)."""
         docs = store_with_docs.list_documents()
         doc_map = {doc.id: doc for doc in docs}
 
-        # doc_001 has annotations but not completed
-        assert doc_map["doc_001"].is_annotated is True
+        # DocumentStore no longer tracks annotation status - always False
+        # (Caller should query AnnotationStore to populate these fields)
+        assert doc_map["doc_001"].is_annotated is False
         assert doc_map["doc_001"].is_completed is False
-
-        # doc_002 has annotations and is completed
-        assert doc_map["doc_002"].is_annotated is True
-        assert doc_map["doc_002"].is_completed is True
-
-        # doc_003 has no annotations
+        assert doc_map["doc_002"].is_annotated is False
+        assert doc_map["doc_002"].is_completed is False
         assert doc_map["doc_003"].is_annotated is False
         assert doc_map["doc_003"].is_completed is False
 
@@ -174,16 +151,17 @@ class TestListDocuments:
 
     def test_handles_corrupt_annotation(self, store_with_docs):
         """Test that corrupt annotation files don't crash listing."""
-        # Corrupt the annotation file for doc_001
+        # Create a corrupt .ann.json file (legacy format, now ignored)
         ann_path = store_with_docs.root / "doc_001.ann.json"
         ann_path.write_text("{invalid json}")
 
-        # Should still list documents, but with is_completed = False
+        # Should still list documents without crashing
+        # (annotation status always False from DocumentStore)
         docs = store_with_docs.list_documents()
         doc_map = {doc.id: doc for doc in docs}
 
-        assert doc_map["doc_001"].is_annotated is True
-        assert doc_map["doc_001"].is_completed is False  # Can't read annotations
+        assert doc_map["doc_001"].is_annotated is False
+        assert doc_map["doc_001"].is_completed is False
 
 
 class TestGetDocument:
@@ -256,103 +234,8 @@ class TestSaveDocument:
         assert "  " in content  # Indentation
 
 
-class TestGetAnnotations:
-    """Tests for get_annotations method."""
-
-    def test_get_existing_annotations(self, store_with_docs):
-        """Test retrieving existing annotations."""
-        ann = store_with_docs.get_annotations("doc_001")
-
-        assert ann.doc_id == "doc_001"
-        assert len(ann.spans) == 1
-        assert ann.spans[0].id == "span_1"
-        assert ann.completed is False
-
-    def test_get_nonexistent_annotations_returns_empty(self, temp_store):
-        """Test that get_annotations returns empty AnnotationFile for nonexistent docs."""
-        ann = temp_store.get_annotations("nonexistent")
-
-        assert isinstance(ann, AnnotationFile)
-        assert ann.doc_id == "nonexistent"
-        assert ann.spans == []
-        assert ann.reasoning_steps == []
-        assert ann.document_annotations == []
-        assert ann.completed is False
-
-    def test_handles_corrupt_annotations(self, temp_store):
-        """Test that corrupt annotation files return empty AnnotationFile."""
-        # Create a document
-        doc = Document(id="test_doc", text="Text", metadata={})
-        temp_store.save_document(doc)
-
-        # Create corrupt annotation file
-        ann_path = temp_store.root / "test_doc.ann.json"
-        ann_path.write_text("{invalid json}")
-
-        # Should return empty annotations, not crash
-        ann = temp_store.get_annotations("test_doc")
-        assert ann.doc_id == "test_doc"
-        assert ann.spans == []
-
-
-class TestSaveAnnotations:
-    """Tests for save_annotations method."""
-
-    def test_save_new_annotations(self, temp_store):
-        """Test saving annotations for a document."""
-        ann = AnnotationFile(
-            doc_id="test_doc",
-            spans=[Span(id="span_1", start=0, end=5, text="Test")],
-            reasoning_steps=[
-                ReasoningStep(
-                    id="step_1",
-                    concept=Concept(code="123", display="Test Concept", system="SNOMED-CT"),
-                    span_ids=["span_1"],
-                )
-            ],
-            document_annotations=[
-                DocumentAnnotation(
-                    id="ann_1",
-                    concept=Concept(code="123", display="Test Concept", system="SNOMED-CT"),
-                    evidence_span_ids=[],
-                    reasoning_step_ids=["step_1"],
-                )
-            ],
-            completed=False,
-        )
-
-        temp_store.save_annotations(ann)
-
-        # Verify file was created
-        ann_path = temp_store.root / "test_doc.ann.json"
-        assert ann_path.exists()
-
-        # Verify content
-        saved_ann = temp_store.get_annotations("test_doc")
-        assert saved_ann.doc_id == "test_doc"
-        assert len(saved_ann.spans) == 1
-        assert len(saved_ann.reasoning_steps) == 1
-        assert len(saved_ann.document_annotations) == 1
-        assert saved_ann.completed is False
-
-    def test_overwrite_annotations(self, store_with_docs):
-        """Test that save_annotations overwrites existing annotations."""
-        # Modify annotations
-        ann = AnnotationFile(
-            doc_id="doc_001",
-            spans=[Span(id="new_span", start=10, end=15, text="Updated")],
-            reasoning_steps=[],
-            document_annotations=[],
-            completed=True,
-        )
-
-        store_with_docs.save_annotations(ann)
-
-        # Verify changes
-        saved_ann = store_with_docs.get_annotations("doc_001")
-        assert len(saved_ann.spans) == 1
-        assert saved_ann.spans[0].id == "new_span"
-        assert saved_ann.completed is True
+# NOTE: Annotation storage tests moved to test_annotation_store.py
+# DocumentStore no longer handles annotations - they're in SQLite
 
 
 class TestDocumentExists:
@@ -369,10 +252,10 @@ class TestDocumentExists:
         assert temp_store.document_exists("nonexistent") is False
 
     def test_only_checks_document_not_annotations(self, temp_store):
-        """Test that document_exists only checks for document files, not annotations."""
-        # Create only an annotation file, no document
-        ann = AnnotationFile(doc_id="orphan", spans=[], reasoning_steps=[], document_annotations=[])
-        temp_store.save_annotations(ann)
+        """Test that document_exists only checks for document files."""
+        # Create only a legacy .ann.json file, no document
+        ann_path = temp_store.root / "orphan.ann.json"
+        ann_path.write_text('{"doc_id": "orphan", "spans": []}')
 
         # Should return False (no document file)
         assert temp_store.document_exists("orphan") is False
