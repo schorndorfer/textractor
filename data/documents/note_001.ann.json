@@ -1,72 +1,7 @@
 {
   "doc_id": "note_001",
-  "spans": [
-    {
-      "id": "span_k3hompfh",
-      "start": 189,
-      "end": 203,
-      "text": "hyperlipidemia"
-    },
-    {
-      "id": "span_8h8qerml",
-      "start": 172,
-      "end": 184,
-      "text": "hypertension"
-    }
-  ],
-  "reasoning_steps": [
-    {
-      "id": "step_fyeovp5u",
-      "concept": {
-        "code": "55822004",
-        "display": "Hyperlipidemia",
-        "system": "SNOMED-CT"
-      },
-      "span_ids": [
-        "span_k3hompfh"
-      ],
-      "note": ""
-    },
-    {
-      "id": "step_2to4jp2w",
-      "concept": {
-        "code": "38341003",
-        "display": "Hypertension",
-        "system": "SNOMED-CT"
-      },
-      "span_ids": [
-        "span_8h8qerml"
-      ],
-      "note": ""
-    }
-  ],
-  "document_annotations": [
-    {
-      "id": "ann_rns1x2qv",
-      "concept": {
-        "code": "38341003",
-        "display": "Hypertensive disorder",
-        "system": "SNOMED-CT"
-      },
-      "evidence_span_ids": [],
-      "reasoning_step_ids": [
-        "step_fyeovp5u"
-      ],
-      "note": ""
-    },
-    {
-      "id": "ann_sm4q6rm3",
-      "concept": {
-        "code": "155295004",
-        "display": "Hypertension",
-        "system": "SNOMED-CT"
-      },
-      "evidence_span_ids": [],
-      "reasoning_step_ids": [
-        "step_2to4jp2w"
-      ],
-      "note": ""
-    }
-  ],
+  "spans": [],
+  "reasoning_steps": [],
+  "document_annotations": [],
   "completed": false
 }
