@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 import anthropic
@@ -9,6 +10,47 @@ from rapidfuzz import fuzz
 from .models import AnnotationFile, Concept, DocumentAnnotation, ReasoningStep, Span, TerminologyConcept
 
 logger = logging.getLogger(__name__)
+
+
+def get_anthropic_client(api_key: str | None = None) -> anthropic.Anthropic:
+    """
+    Get the appropriate Anthropic client (direct API or AWS Bedrock).
+
+    Checks for AWS Bedrock configuration via environment variables:
+    - AWS_BEARER_TOKEN_BEDROCK: Bearer token for Bedrock authentication
+    - AWS_REGION: AWS region for Bedrock (defaults to us-east-1)
+
+    If Bedrock variables are present, returns AnthropicBedrock client.
+    Otherwise, returns standard Anthropic client.
+
+    Args:
+        api_key: API key for direct Anthropic API (ignored for Bedrock)
+
+    Returns:
+        Anthropic client instance (either Anthropic or AnthropicBedrock)
+    """
+    bedrock_token = os.environ.get("AWS_BEARER_TOKEN_BEDROCK")
+
+    if bedrock_token:
+        # Use AWS Bedrock
+        aws_region = os.environ.get("AWS_REGION", "us-east-1")
+        logger.info(f"Using AWS Bedrock client in region: {aws_region}")
+
+        try:
+            from anthropic import AnthropicBedrock
+        except ImportError:
+            logger.error(
+                "AnthropicBedrock not available. Install with: pip install 'anthropic[bedrock]'"
+            )
+            raise
+
+        return AnthropicBedrock(
+            aws_region=aws_region,
+        )
+    else:
+        # Use direct Anthropic API
+        logger.info("Using direct Anthropic API client")
+        return anthropic.Anthropic(api_key=api_key)
 
 # Clinical categories to keep when filtering annotations
 CLINICAL_CATEGORIES = {
@@ -41,7 +83,7 @@ def extract_medical_terms(text: str, api_key: str, model: str = "claude-sonnet-4
         ValueError: If LLM response is invalid
         anthropic.APIError: If API call fails
     """
-    client = anthropic.Anthropic(api_key=api_key)
+    client = get_anthropic_client(api_key=api_key)
 
     tools = [
         {
@@ -145,7 +187,7 @@ def generate_annotations_raw(
         ValueError: If LLM response is invalid
         anthropic.APIError: If API call fails
     """
-    client = anthropic.Anthropic(api_key=api_key)
+    client = get_anthropic_client(api_key=api_key)
 
     # Format SNOMED candidates for prompt
     snomed_list = "\n".join(

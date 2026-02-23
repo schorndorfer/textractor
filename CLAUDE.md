@@ -271,9 +271,15 @@ Annotation output (`{doc_id}.ann.json`):
 | Variable | Default | Description |
 |---|---|---|
 | `TEXTRACTOR_DOC_ROOT` | `./data/documents` | Directory scanned recursively for `*.json` document files |
-| `ANTHROPIC_API_KEY` | (required for pre-annotation) | Anthropic API key for Claude AI access |
-| `TEXTRACTOR_LLM_MODEL` | `claude-sonnet-4-5` | Model name for annotation generation |
+| `ANTHROPIC_API_KEY` | (required for pre-annotation) | Anthropic API key for Claude AI access (not needed for Bedrock) |
+| `AWS_BEARER_TOKEN_BEDROCK` | - | AWS bearer token for Bedrock authentication (alternative to direct API) |
+| `AWS_REGION` | `us-east-1` | AWS region for Bedrock (only used if `AWS_BEARER_TOKEN_BEDROCK` is set) |
+| `TEXTRACTOR_LLM_MODEL` | `claude-sonnet-4-5` | Model name for annotation generation (use Bedrock model IDs when using Bedrock) |
 | `TEXTRACTOR_FUZZY_THRESHOLD` | `90` | Minimum similarity (0-100) for span offset recovery |
+
+**LLM Provider Options:**
+- **Direct Anthropic API (default):** Set `ANTHROPIC_API_KEY` only
+- **AWS Bedrock:** Set `AWS_BEARER_TOKEN_BEDROCK` (and optionally `AWS_REGION`). When using Bedrock, use Bedrock model IDs like `anthropic.claude-sonnet-4-0-v1` for `TEXTRACTOR_LLM_MODEL`.
 
 **SNOMED CT Setup:**
 - Place SNOMED CT RF2 files in `data/terminology/SnomedCT/`
