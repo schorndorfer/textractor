@@ -108,6 +108,28 @@ export function AnnotationPanel({
     onPreAnnotate();
   };
 
+  const handleClear = () => {
+    const hasExistingAnnotations =
+      annotations.spans.length > 0 ||
+      annotations.reasoning_steps.length > 0 ||
+      annotations.document_annotations.length > 0;
+
+    if (!hasExistingAnnotations) return; // Nothing to clear
+
+    const confirmed = window.confirm(
+      'This will delete all annotations (spans, reasoning steps, and document annotations). This cannot be undone. Continue?'
+    );
+
+    if (!confirmed) return;
+
+    onChange({
+      ...annotations,
+      spans: [],
+      reasoning_steps: [],
+      document_annotations: [],
+    });
+  };
+
   return (
     <aside className="annotation-panel">
       <div className="panel-header">
@@ -130,6 +152,19 @@ export function AnnotationPanel({
           title="Generate AI annotations"
         >
           {isPreAnnotating ? '⏳ Pre-annotating...' : '✨ Pre-annotate'}
+        </button>
+        <button
+          onClick={handleClear}
+          disabled={
+            isLocked ||
+            (annotations.spans.length === 0 &&
+              annotations.reasoning_steps.length === 0 &&
+              annotations.document_annotations.length === 0)
+          }
+          className="clear-btn"
+          title="Clear all annotations"
+        >
+          🗑️ Clear All
         </button>
         <button onClick={onRevert} disabled={!isDirty || isLocked} className={`save-btn${isDirty ? ' dirty' : ''}`}>
           Revert
