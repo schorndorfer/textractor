@@ -24,16 +24,14 @@ RUN apt-get update && \
     && curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Add uv to PATH
-ENV PATH="/root/.cargo/bin:$PATH"
+ENV PATH="/root/.local/bin:$PATH"
 
-# Copy Python dependencies files
-COPY pyproject.toml uv.lock ./
+# Copy Python dependencies files and source
+COPY pyproject.toml uv.lock README.md ./
+COPY src/ ./src/
 
 # Install Python dependencies with locked versions
 RUN uv sync --frozen --no-dev
-
-# Copy backend source
-COPY src/ ./src/
 
 # Copy built frontend from builder stage
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist/
