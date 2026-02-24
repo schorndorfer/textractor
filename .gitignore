@@ -29,3 +29,9 @@ data/documents/*.json
 *.db
 *.db-shm
 *.db-wal
+
+# MacOS
+.DS_Store
+
+# IDE
+.vscode/

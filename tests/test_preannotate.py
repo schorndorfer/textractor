@@ -31,8 +31,9 @@ def sample_doc(tmp_path):
 
 
 def test_preannotate_missing_api_key(tmp_path):
-    """Test error when API key not configured"""
+    """Test error when no LLM credentials are configured"""
     os.environ.pop("ANTHROPIC_API_KEY", None)
+    os.environ.pop("AWS_BEARER_TOKEN_BEDROCK", None)
 
     doc_id = "test_doc"
     (tmp_path / f"{doc_id}.json").write_text(
@@ -47,7 +48,7 @@ def test_preannotate_missing_api_key(tmp_path):
 
     response = client.post(f"/api/documents/{doc_id}/preannotate")
     assert response.status_code == 500
-    assert "ANTHROPIC_API_KEY" in response.json()["detail"]
+    assert "LLM credentials not configured" in response.json()["detail"]
 
     # Restore for other tests
     os.environ["ANTHROPIC_API_KEY"] = "test-key"
@@ -114,3 +115,44 @@ def test_preannotate_success(
     assert len(data["spans"]) == 1
     assert data["spans"][0]["text"] == "chest pain"
     assert data["spans"][0]["source"] == "model"
+
+
+@patch("textractor.api.routers.preannotate.extract_medical_terms")
+@patch("textractor.api.routers.preannotate.generate_annotations_raw")
+@patch("textractor.api.routers.preannotate.validate_and_convert_annotations")
+def test_preannotate_success_with_bedrock_token_only(
+    mock_validate, mock_generate, mock_extract, tmp_path, sample_doc
+):
+    """Test pre-annotation works with Bedrock token when ANTHROPIC_API_KEY is missing."""
+    from textractor.api.models import AnnotationFile, Span
+
+    os.environ.pop("ANTHROPIC_API_KEY", None)
+    os.environ["AWS_BEARER_TOKEN_BEDROCK"] = "bedrock-test-token"
+
+    init_store(tmp_path)
+    init_annotation_store(tmp_path / "test.db")
+    init_terminology(snomed_dir=None)
+    app = create_app()
+    client = TestClient(app)
+
+    mock_extract.return_value = ["chest pain"]
+    mock_generate.return_value = {
+        "spans": [{"start": 12, "end": 22, "text": "chest pain"}],
+        "reasoning_steps": [],
+        "document_annotations": [],
+    }
+    mock_validate.return_value = AnnotationFile(
+        doc_id=sample_doc,
+        spans=[Span(start=12, end=22, text="chest pain", source="model")],
+        reasoning_steps=[],
+        document_annotations=[],
+    )
+
+    response = client.post(f"/api/documents/{sample_doc}/preannotate")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["doc_id"] == sample_doc
+
+    os.environ.pop("AWS_BEARER_TOKEN_BEDROCK", None)
+    os.environ["ANTHROPIC_API_KEY"] = "test-key"
