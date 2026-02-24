@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import io
 import json
-import zipfile
 from urllib.parse import quote
 
 import logging
@@ -13,6 +12,7 @@ from pydantic import BaseModel
 
 from ..annotation_store import SQLiteAnnotationStore
 from ..dependencies import get_annotation_store, get_store
+from ..export_utils import create_export_zip
 from ..models import Document, DocumentSummary
 from ..storage import DocumentStore
 
@@ -114,39 +114,23 @@ def export_project(
     # Filter by project if specified
     if project is not None:
         docs_to_export = [
-            d for d in all_docs
-            if d.metadata.get("project") == project
+            d for d in all_docs if d.metadata.get("project") == project
         ]
     else:
         docs_to_export = all_docs
 
-    # Create ZIP in memory
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-        for doc_summary in docs_to_export:
-            # Add document JSON
-            doc = doc_store.get_document(doc_summary.id)
-            if doc:
-                doc_json = doc.model_dump_json(indent=2)
-                zf.writestr(f"{doc.id}.json", doc_json)
-            else:
-                logger.warning(f"Failed to load document {doc_summary.id} for export")
-
-            # Add annotations JSON if they exist
-            annotations = ann_store.get_annotations(doc_summary.id, annotator=annotator)
-            if annotations:
-                ann_json = annotations.model_dump_json(indent=2)
-                zf.writestr(f"{doc_summary.id}.ann.json", ann_json)
+    # Create ZIP using shared utility
+    zip_bytes = create_export_zip(docs_to_export, doc_store, ann_store, annotator)
 
     # Prepare response
-    zip_buffer.seek(0)
-    filename_safe = quote(project or 'all-documents', safe='')
+    zip_buffer = io.BytesIO(zip_bytes)
+    filename_safe = quote(project or "all-documents", safe="")
     filename = f"{filename_safe}.zip"
 
     return StreamingResponse(
         zip_buffer,
         media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
