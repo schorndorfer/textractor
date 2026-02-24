@@ -101,6 +101,7 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
   const [showAddFilesDialog, setShowAddFilesDialog] = useState<string | null>(null);
   const [creatingProject, setCreatingProject] = useState(false);
   const [createProjectName, setCreateProjectName] = useState('');
+  const [exportingProject, setExportingProject] = useState<string | null>(null);
   const uploadMenuRef = useRef<HTMLDivElement>(null);
   const projectMenuRef = useRef<HTMLDivElement>(null);
   const addFilesDialogRef = useRef<HTMLDivElement>(null);
@@ -508,6 +509,24 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
                       }}
                     >
                       Add Files
+                    </button>
+                    <button
+                      className="project-menu-item"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        setShowProjectMenu(null);
+                        setExportingProject(project);
+                        try {
+                          await api.exportProject(project === 'Uncategorized' ? null : project);
+                        } catch (err) {
+                          setUploadError(`Failed to export project: ${err}`);
+                        } finally {
+                          setExportingProject(null);
+                        }
+                      }}
+                      disabled={exportingProject === project}
+                    >
+                      {exportingProject === project ? '📦 Exporting...' : '📦 Export Project'}
                     </button>
                     {project !== 'Uncategorized' && (
                       <>

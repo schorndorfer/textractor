@@ -67,4 +67,23 @@ export const api = {
     form.append('file', file);
     return request<TerminologyInfo>('/terminology/upload', { method: 'POST', body: form });
   },
+
+  exportProject: (projectName: string | null) => {
+    const params = projectName ? `?project=${encodeURIComponent(projectName)}` : '';
+    return fetch(`${BASE}/documents/export${params}`)
+      .then(res => {
+        if (!res.ok) throw new Error(`Export failed: ${res.statusText}`);
+        return res.blob();
+      })
+      .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${projectName || 'all-documents'}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      });
+  },
 };

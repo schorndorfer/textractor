@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import io
 import json
+import zipfile
+from urllib.parse import quote
 
 import logging
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from ..annotation_store import SQLiteAnnotationStore
@@ -86,6 +90,64 @@ async def upload_documents(
         logger.warning("Partial upload failure: %s", "; ".join(errors))
 
     return summaries
+
+
+@router.get("/export")
+def export_project(
+    project: str | None = None,
+    annotator: str = "default",
+    doc_store: DocumentStore = Depends(get_store),
+    ann_store: SQLiteAnnotationStore = Depends(get_annotation_store),
+):
+    """Export documents and annotations as a ZIP file.
+
+    Args:
+        project: Project name to export. If None, exports all documents.
+        annotator: Annotator name for annotations (default: "default")
+
+    Returns:
+        ZIP file containing document JSON files and annotation JSON files.
+    """
+    # Get all documents
+    all_docs = doc_store.list_documents()
+
+    # Filter by project if specified
+    if project is not None:
+        docs_to_export = [
+            d for d in all_docs
+            if d.metadata.get("project") == project
+        ]
+    else:
+        docs_to_export = all_docs
+
+    # Create ZIP in memory
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for doc_summary in docs_to_export:
+            # Add document JSON
+            doc = doc_store.get_document(doc_summary.id)
+            if doc:
+                doc_json = doc.model_dump_json(indent=2)
+                zf.writestr(f"{doc.id}.json", doc_json)
+            else:
+                logger.warning(f"Failed to load document {doc_summary.id} for export")
+
+            # Add annotations JSON if they exist
+            annotations = ann_store.get_annotations(doc_summary.id, annotator=annotator)
+            if annotations:
+                ann_json = annotations.model_dump_json(indent=2)
+                zf.writestr(f"{doc_summary.id}.ann.json", ann_json)
+
+    # Prepare response
+    zip_buffer.seek(0)
+    filename_safe = quote(project or 'all-documents', safe='')
+    filename = f"{filename_safe}.zip"
+
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
 
 
 @router.get("/{doc_id}", response_model=Document)

@@ -251,7 +251,7 @@ State lives entirely in `App.tsx` (`selectedDocId`, `annotations`, `isDirty`, `s
 | `AnnotationPanel` | Owns cascading-delete logic: span deletion cleans `span_ids` in all steps and `evidence_span_ids` in all document annotations; step deletion cleans `reasoning_step_ids` in all document annotations. |
 | `ReasoningStepList` | Intermediate concept annotations with optional free-form notes, each linked to 0+ spans via checkboxes. |
 | `DocumentAnnotationList` | Final document-level annotations linked to 0+ spans and 0+ reasoning steps. Clicking selects/highlights the annotation. |
-| `DocumentList` | Project-based organization with collapsible groups. Projects stored in `doc.metadata.project`. Uses "Add Files" dialog to move documents between projects. |
+| `DocumentList` | Project-based organization with collapsible groups. Projects stored in `doc.metadata.project`. Uses "Add Files" dialog to move documents between projects. Export button downloads project as ZIP file. |
 | `AnnotationGraph` | React Flow interactive graph showing document annotation → reasoning steps → spans. Nodes are draggable, zoomable, pannable. |
 
 ### Data model
@@ -321,6 +321,31 @@ uv run textractor migrate-annotations --archive --verbose
 - `--verbose`: Show detailed progress
 
 All legacy annotations are imported as version 1 with `source="human"`.
+
+### Project Export
+
+**Export projects for backup and collaboration:**
+
+**Features:**
+- Export entire project as ZIP file (documents + annotations)
+- Export all documents when no project selected
+- Annotations exported from SQLite to `.ann.json` format
+- ZIP filename matches project name
+
+**Usage:**
+- Right-click project → "Export Project"
+- Downloads `{project-name}.zip` containing:
+  - `{doc_id}.json` - Document files
+  - `{doc_id}.ann.json` - Annotation files (latest version)
+
+**API:**
+- `GET /api/documents/export?project={name}` - Export specific project
+- `GET /api/documents/export` - Export all documents
+
+**Import:**
+- Unzip files into `TEXTRACTOR_DOC_ROOT`
+- Documents automatically detected on next load
+- Annotations imported via: `uv run textractor migrate-annotations`
 
 ### Environment variables
 
