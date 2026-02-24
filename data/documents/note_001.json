@@ -4,6 +4,7 @@
   "metadata": {
     "patient_id": "PT-8842",
     "date": "2024-03-15",
-    "note_type": "ED Admission"
+    "note_type": "ED Admission",
+    "project": "test-project-2"
   }
 }
