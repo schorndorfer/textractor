@@ -20,32 +20,32 @@ def get_anthropic_client(api_key: str | None = None) -> anthropic.Anthropic:
     - AWS_BEARER_TOKEN_BEDROCK: Bearer token for Bedrock authentication
     - AWS_REGION: AWS region for Bedrock (defaults to us-east-1)
 
-    If Bedrock variables are present, returns AnthropicBedrock client.
+    If bearer token is present, uses standard Anthropic client with custom headers.
     Otherwise, returns standard Anthropic client.
 
     Args:
-        api_key: API key for direct Anthropic API (ignored for Bedrock)
+        api_key: API key for direct Anthropic API (ignored for Bedrock bearer token auth)
 
     Returns:
-        Anthropic client instance (either Anthropic or AnthropicBedrock)
+        Anthropic client instance configured for direct API or Bedrock
     """
     bedrock_token = os.environ.get("AWS_BEARER_TOKEN_BEDROCK")
 
     if bedrock_token:
-        # Use AWS Bedrock
+        # Use AWS Bedrock with bearer token authentication
+        # Note: The official AnthropicBedrock client doesn't support bearer tokens yet
+        # (PR #1129 is pending), so we use the standard client with custom configuration
         aws_region = os.environ.get("AWS_REGION", "us-east-1")
-        logger.info(f"Using AWS Bedrock client in region: {aws_region}")
+        bedrock_base_url = f"https://bedrock-runtime.{aws_region}.amazonaws.com"
 
-        try:
-            from anthropic import AnthropicBedrock
-        except ImportError:
-            logger.error(
-                "AnthropicBedrock not available. Install with: pip install 'anthropic[bedrock]'"
-            )
-            raise
+        logger.info(f"Using AWS Bedrock with bearer token in region: {aws_region}")
 
-        return AnthropicBedrock(
-            aws_region=aws_region,
+        return anthropic.Anthropic(
+            base_url=bedrock_base_url,
+            api_key="bedrock",  # Dummy value, not used with bearer token
+            default_headers={
+                "Authorization": f"Bearer {bedrock_token}",
+            },
         )
     else:
         # Use direct Anthropic API

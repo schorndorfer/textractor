@@ -411,7 +411,7 @@ To import, unzip files into `TEXTRACTOR_DOC_ROOT` and run `uv run textractor mig
 
 **LLM Provider Options:**
 - **Direct Anthropic API (default):** Set `ANTHROPIC_API_KEY` only
-- **AWS Bedrock:** Set `AWS_BEARER_TOKEN_BEDROCK` (and optionally `AWS_REGION`). When using Bedrock, use Bedrock model IDs like `anthropic.claude-sonnet-4-0-v1` for `TEXTRACTOR_LLM_MODEL`.
+- **AWS Bedrock with Bearer Token:** Set `AWS_BEARER_TOKEN_BEDROCK` (and optionally `AWS_REGION`). Uses standard Anthropic client with custom headers pointing to Bedrock endpoint. When using Bedrock, use Bedrock model IDs like `anthropic.claude-sonnet-4-0-v1` for `TEXTRACTOR_LLM_MODEL`. Note: Bearer token support is implemented as a workaround since the official AnthropicBedrock SDK client doesn't support bearer tokens yet (see [anthropic-sdk-python#1129](https://github.com/anthropics/anthropic-sdk-python/pull/1129)).
 
 **SNOMED CT Setup:**
 - Place SNOMED CT RF2 files in `data/terminology/SnomedCT/` (or path specified in `TEXTRACTOR_SNOMED_DIR`)
