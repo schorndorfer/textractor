@@ -383,6 +383,11 @@ input { font-family: inherit; font-size: 13px; }
   background: var(--bg);
 }
 
+.project-menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .project-menu-delete {
   color: var(--danger);
 }
