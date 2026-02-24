@@ -322,6 +322,37 @@ uv run textractor migrate-annotations --archive --verbose
 
 All legacy annotations are imported as version 1 with `source="human"`.
 
+**CLI Export:**
+
+Export a project's documents and annotations to a ZIP file:
+
+```bash
+# Export project to default location (./{project-name}.zip)
+uv run textractor export-project my-project
+
+# Export to specific location
+uv run textractor export-project my-project --output /path/to/backup.zip
+
+# Export with custom annotator
+uv run textractor export-project my-project --annotator john_doe
+
+# Verbose output
+uv run textractor export-project my-project --verbose
+```
+
+**Options:**
+- `--output` / `-o` - Output path for ZIP file (default: `./{project-name}.zip`)
+- `--annotator` - Annotator name for annotations (default: "default")
+- `--doc-root` - Document root directory (default: `$TEXTRACTOR_DOC_ROOT` or `./data/documents`)
+- `--db-path` - SQLite database path (default: `$TEXTRACTOR_DB_PATH` or `./data/textractor.db`)
+- `--verbose` / `-v` - Enable verbose logging
+
+The exported ZIP contains:
+- `{doc_id}.json` - Document files
+- `{doc_id}.ann.json` - Annotation files (latest version)
+
+To import, unzip files into `TEXTRACTOR_DOC_ROOT` and run `uv run textractor migrate-annotations` if needed.
+
 ### Project Export
 
 **Export projects for backup and collaboration:**
