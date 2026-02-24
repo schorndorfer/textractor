@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   textractor:
     build: .
@@ -7,8 +5,8 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      # Docker-managed volume for user documents
-      - textractor-data:/app/data/documents
+      # Docker-managed volume for all application data (documents + database)
+      - textractor-data:/app/data
       # Host mount for SNOMED terminology (read-only)
       - ./data/terminology:/app/data/terminology:ro
     environment:
