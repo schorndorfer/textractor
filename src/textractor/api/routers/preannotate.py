@@ -51,12 +51,16 @@ def preannotate_document(
         HTTPException 500: API key not configured
         HTTPException 502: LLM API error
     """
-    # Check API key
+    # Check credentials (either direct Anthropic API key or Bedrock bearer token)
     api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
+    bedrock_token = os.environ.get("AWS_BEARER_TOKEN_BEDROCK")
+    if not api_key and not bedrock_token:
         raise HTTPException(
             status_code=500,
-            detail="ANTHROPIC_API_KEY environment variable not configured",
+            detail=(
+                "LLM credentials not configured. Set ANTHROPIC_API_KEY "
+                "or AWS_BEARER_TOKEN_BEDROCK"
+            ),
         )
 
     # Check document exists

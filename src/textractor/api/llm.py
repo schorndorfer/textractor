@@ -29,7 +29,11 @@ def get_anthropic_client(api_key: str | None = None) -> anthropic.Anthropic:
     Returns:
         Anthropic client instance configured for direct API or Bedrock
     """
-    bedrock_token = os.environ.get("AWS_BEARER_TOKEN_BEDROCK")
+    bedrock_token_raw = os.environ.get("AWS_BEARER_TOKEN_BEDROCK")
+    bedrock_token = bedrock_token_raw.strip() if bedrock_token_raw else ""
+
+    if bedrock_token.lower().startswith("bearer "):
+        bedrock_token = bedrock_token[7:].strip()
 
     if bedrock_token:
         # Use AWS Bedrock with bearer token authentication
@@ -38,7 +42,11 @@ def get_anthropic_client(api_key: str | None = None) -> anthropic.Anthropic:
         aws_region = os.environ.get("AWS_REGION", "us-east-1")
         bedrock_base_url = f"https://bedrock-runtime.{aws_region}.amazonaws.com"
 
-        logger.info(f"Using AWS Bedrock with bearer token in region: {aws_region}")
+        logger.info(
+            "LLM auth mode: aws_bedrock_bearer_token, region=%s, token_length=%s",
+            aws_region,
+            len(bedrock_token),
+        )
 
         return anthropic.Anthropic(
             base_url=bedrock_base_url,
@@ -49,7 +57,7 @@ def get_anthropic_client(api_key: str | None = None) -> anthropic.Anthropic:
         )
     else:
         # Use direct Anthropic API
-        logger.info("Using direct Anthropic API client")
+        logger.info("LLM auth mode: direct_anthropic_api")
         return anthropic.Anthropic(api_key=api_key)
 
 # Clinical categories to keep when filtering annotations

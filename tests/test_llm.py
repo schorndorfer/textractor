@@ -2,6 +2,7 @@ from unittest.mock import Mock, patch
 
 from textractor.api.llm import (
     extract_medical_terms,
+    get_anthropic_client,
     generate_annotations_raw,
     recover_span_offsets,
     validate_and_convert_annotations,
@@ -53,6 +54,40 @@ def test_extract_medical_terms_no_tool_use():
 
 
 # ── generate_annotations_raw ──────────────────────────────────────────────────
+
+def test_get_anthropic_client_uses_bedrock_token_with_bearer_prefix():
+    """Test Bedrock token is normalized when env var includes Bearer prefix."""
+    with patch.dict(
+        "os.environ",
+        {
+            "AWS_BEARER_TOKEN_BEDROCK": "  Bearer abc123token  ",
+            "AWS_REGION": "us-west-2",
+        },
+        clear=False,
+    ):
+        with patch("textractor.api.llm.anthropic.Anthropic") as mock_anthropic:
+            get_anthropic_client(api_key="unused-key")
+
+    mock_anthropic.assert_called_once_with(
+        base_url="https://bedrock-runtime.us-west-2.amazonaws.com",
+        api_key="bedrock",
+        default_headers={"Authorization": "Bearer abc123token"},
+    )
+
+
+def test_get_anthropic_client_uses_direct_api_when_bedrock_token_blank():
+    """Test direct API is used when Bedrock token is empty/whitespace."""
+    with patch.dict(
+        "os.environ",
+        {
+            "AWS_BEARER_TOKEN_BEDROCK": "   ",
+        },
+        clear=False,
+    ):
+        with patch("textractor.api.llm.anthropic.Anthropic") as mock_anthropic:
+            get_anthropic_client(api_key="direct-key")
+
+    mock_anthropic.assert_called_once_with(api_key="direct-key")
 
 def test_generate_annotations_raw():
     """Test structured annotation generation"""
