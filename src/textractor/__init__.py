@@ -7,14 +7,22 @@ import uvicorn
 def main() -> None:
     """Main CLI entry point - routes to server or subcommands."""
     # Check if a subcommand was provided
-    if len(sys.argv) > 1 and sys.argv[1] == "migrate-annotations":
-        # Route to migration command
-        from .cli.migrate import main as migrate_main
+    if len(sys.argv) > 1:
+        subcommand = sys.argv[1]
 
-        # Remove the subcommand from argv so argparse in migrate.py works correctly
-        sys.argv.pop(1)
-        migrate_main()
-        return
+        if subcommand == "migrate-annotations":
+            # Route to migration command
+            from .cli.migrate import main as migrate_main
+            sys.argv.pop(1)
+            migrate_main()
+            return
+
+        elif subcommand == "export-project":
+            # Route to export command
+            from .cli.export import main as export_main
+            sys.argv.pop(1)
+            export_main()
+            return
 
     # Default: run the server
     host = os.environ.get("TEXTRACTOR_HOST", "0.0.0.0")
