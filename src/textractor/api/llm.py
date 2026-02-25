@@ -12,6 +12,49 @@ from .models import AnnotationFile, Concept, DocumentAnnotation, ReasoningStep, 
 logger = logging.getLogger(__name__)
 
 
+def _llm_runtime_context() -> str:
+    bedrock_token_raw = os.environ.get("AWS_BEARER_TOKEN_BEDROCK")
+    bedrock_token = bedrock_token_raw.strip() if bedrock_token_raw else ""
+    auth_mode = "aws_bedrock" if bedrock_token else "direct_anthropic"
+    model = os.environ.get("TEXTRACTOR_LLM_MODEL")
+    model_desc = model if model else "<default>"
+    return f"auth_mode={auth_mode}, model={model_desc}"
+
+
+def _extract_tool_calls(response: Any, stage: str) -> list[Any]:
+    response_content = getattr(response, "content", None)
+
+    if not isinstance(response_content, list):
+        context = _llm_runtime_context()
+        stop_reason = getattr(response, "stop_reason", None)
+        logger.error(
+            "%s: invalid LLM content payload type=%s stop_reason=%s (%s)",
+            stage,
+            type(response_content).__name__,
+            stop_reason,
+            context,
+        )
+
+        response_error = getattr(response, "error", None)
+        if response_error:
+            response_summary = f"provider_error={response_error}"
+        else:
+            response_summary = f"response={repr(response)[:300]}"
+
+        raise ValueError(
+            f"LLM returned empty or invalid content ({context}). "
+            f"Check TEXTRACTOR_LLM_MODEL is valid for the configured provider. {response_summary}"
+        )
+
+    tool_calls = [block for block in response_content if getattr(block, "type", None) == "tool_use"]
+
+    if not tool_calls:
+        logger.error(f"No tool calls found. stop_reason={response.stop_reason}, response={response}")
+        raise ValueError("No tool calls found in LLM response")
+
+    return tool_calls
+
+
 def get_anthropic_client(api_key: str | None = None) -> anthropic.Anthropic:
     """
     Get the appropriate Anthropic client (direct API or AWS Bedrock).
@@ -139,11 +182,7 @@ Be thorough but only include medically significant terms."""
     logger.info(f"Term extraction: stop_reason={response.stop_reason}, usage={response.usage}")
 
     # Check for tool calls first
-    tool_calls = [block for block in response.content if block.type == "tool_use"]
-
-    if not tool_calls:
-        logger.error(f"No tool calls found. stop_reason={response.stop_reason}, response={response}")
-        raise ValueError("No tool calls found in LLM response")
+    tool_calls = _extract_tool_calls(response, stage="term_extraction")
 
     # Accept tool_use or max_tokens if we have a valid tool call
     if response.stop_reason not in ("tool_use", "max_tokens"):
@@ -323,11 +362,7 @@ Return structured annotations following the tool schema."""
     logger.info(f"Annotation generation: stop_reason={response.stop_reason}, usage={response.usage}")
 
     # Check for tool calls first
-    tool_calls = [block for block in response.content if block.type == "tool_use"]
-
-    if not tool_calls:
-        logger.error(f"No tool calls found. stop_reason={response.stop_reason}, response={response}")
-        raise ValueError("No tool calls found in LLM response")
+    tool_calls = _extract_tool_calls(response, stage="annotation_generation")
 
     # Accept tool_use or max_tokens if we have a valid tool call
     if response.stop_reason not in ("tool_use", "max_tokens"):

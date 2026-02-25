@@ -8,11 +8,41 @@ import type {
 
 const BASE = '/api';
 
+export class ApiError extends Error {
+  status: number;
+  statusText: string;
+  detail: string;
+  body: string;
+
+  constructor(status: number, statusText: string, detail: string, body: string) {
+    super(`${status} ${statusText}: ${detail || body}`);
+    this.name = 'ApiError';
+    this.status = status;
+    this.statusText = statusText;
+    this.detail = detail;
+    this.body = body;
+  }
+}
+
+function parseErrorDetail(body: string): string {
+  try {
+    const parsed = JSON.parse(body) as { detail?: unknown };
+    if (typeof parsed.detail === 'string') {
+      return parsed.detail;
+    }
+  } catch {
+    // Non-JSON body
+  }
+
+  return body;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, init);
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`${res.status} ${res.statusText}: ${body}`);
+    const detail = parseErrorDetail(body);
+    throw new ApiError(res.status, res.statusText, detail, body);
   }
   return res.json() as Promise<T>;
 }

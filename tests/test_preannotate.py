@@ -156,3 +156,68 @@ def test_preannotate_success_with_bedrock_token_only(
 
     os.environ.pop("AWS_BEARER_TOKEN_BEDROCK", None)
     os.environ["ANTHROPIC_API_KEY"] = "test-key"
+
+
+@patch("textractor.api.routers.preannotate.extract_medical_terms")
+@patch("textractor.api.routers.preannotate.generate_annotations_raw")
+@patch("textractor.api.routers.preannotate.validate_and_convert_annotations")
+def test_preannotate_bedrock_defaults_to_bedrock_model(
+    mock_validate, mock_generate, mock_extract, tmp_path, sample_doc
+):
+    """Test Bedrock mode uses a Bedrock-compatible model when model env var is missing."""
+    from textractor.api.models import AnnotationFile
+
+    os.environ.pop("ANTHROPIC_API_KEY", None)
+    os.environ["AWS_BEARER_TOKEN_BEDROCK"] = "bedrock-test-token"
+    os.environ.pop("TEXTRACTOR_LLM_MODEL", None)
+
+    init_store(tmp_path)
+    init_annotation_store(tmp_path / "test.db")
+    init_terminology(snomed_dir=None)
+    app = create_app()
+    client = TestClient(app)
+
+    mock_extract.return_value = ["chest pain"]
+    mock_generate.return_value = {
+        "spans": [],
+        "reasoning_steps": [],
+        "document_annotations": [],
+    }
+    mock_validate.return_value = AnnotationFile(
+        doc_id=sample_doc,
+        spans=[],
+        reasoning_steps=[],
+        document_annotations=[],
+    )
+
+    response = client.post(f"/api/documents/{sample_doc}/preannotate")
+    assert response.status_code == 200
+
+    assert mock_extract.called
+    assert mock_generate.called
+    assert mock_extract.call_args.kwargs["model"] == "anthropic.claude-sonnet-4-0-v1"
+    assert mock_generate.call_args.kwargs["model"] == "anthropic.claude-sonnet-4-0-v1"
+
+    os.environ.pop("AWS_BEARER_TOKEN_BEDROCK", None)
+    os.environ["ANTHROPIC_API_KEY"] = "test-key"
+
+
+def test_preannotate_rejects_direct_model_in_bedrock_mode(tmp_path, sample_doc):
+    """Test clear 500 error for provider/model mismatch (Bedrock token + direct model name)."""
+    os.environ.pop("ANTHROPIC_API_KEY", None)
+    os.environ["AWS_BEARER_TOKEN_BEDROCK"] = "bedrock-test-token"
+    os.environ["TEXTRACTOR_LLM_MODEL"] = "claude-sonnet-4-5"
+
+    init_store(tmp_path)
+    init_annotation_store(tmp_path / "test.db")
+    init_terminology(snomed_dir=None)
+    app = create_app()
+    client = TestClient(app)
+
+    response = client.post(f"/api/documents/{sample_doc}/preannotate")
+    assert response.status_code == 500
+    assert "Invalid TEXTRACTOR_LLM_MODEL for AWS Bedrock" in response.json()["detail"]
+
+    os.environ.pop("AWS_BEARER_TOKEN_BEDROCK", None)
+    os.environ.pop("TEXTRACTOR_LLM_MODEL", None)
+    os.environ["ANTHROPIC_API_KEY"] = "test-key"

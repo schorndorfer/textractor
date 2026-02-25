@@ -32,5 +32,6 @@ def main() -> None:
         "textractor.api.main:app",
         host=host,
         port=port,
+        env_file=".env",
         reload=False,
     )

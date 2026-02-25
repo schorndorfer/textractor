@@ -17,6 +17,22 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/documents", tags=["preannotate"])
 
 
+def _resolve_model_name() -> tuple[str, bool]:
+    """Resolve model name and whether Bedrock auth mode is active."""
+    bedrock_token_raw = os.environ.get("AWS_BEARER_TOKEN_BEDROCK")
+    bedrock_token = bedrock_token_raw.strip() if bedrock_token_raw else ""
+    using_bedrock = bool(bedrock_token)
+
+    configured_model = os.environ.get("TEXTRACTOR_LLM_MODEL")
+    if configured_model:
+        return configured_model, using_bedrock
+
+    if using_bedrock:
+        return "anthropic.claude-sonnet-4-0-v1", using_bedrock
+
+    return "claude-sonnet-4-5", using_bedrock
+
+
 @router.post("/{doc_id}/preannotate", response_model=AnnotationFile)
 def preannotate_document(
     doc_id: str,
@@ -79,7 +95,25 @@ def preannotate_document(
     if not doc:
         raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
 
-    model = os.environ.get("TEXTRACTOR_LLM_MODEL", "claude-sonnet-4-5")
+    model, using_bedrock = _resolve_model_name()
+
+    if using_bedrock and not model.startswith("anthropic."):
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Invalid TEXTRACTOR_LLM_MODEL for AWS Bedrock. "
+                "Use a Bedrock model ID like 'anthropic.claude-sonnet-4-0-v1'."
+            ),
+        )
+
+    if not using_bedrock and model.startswith("anthropic."):
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Invalid TEXTRACTOR_LLM_MODEL for direct Anthropic API. "
+                "Use an Anthropic model name like 'claude-sonnet-4-5'."
+            ),
+        )
 
     try:
         # Stage 1: Extract medical terms
@@ -124,8 +158,24 @@ def preannotate_document(
         return annotation_file
 
     except ValueError as e:
+        error_detail = f"LLM response error: {str(e)}"
+
+        if using_bedrock and "empty or invalid content" in str(e):
+            error_detail += (
+                " Bedrock diagnostics: verify AWS_BEARER_TOKEN_BEDROCK is valid and not expired; "
+                "verify the configured model is enabled for your AWS account/region; "
+                f"verify TEXTRACTOR_LLM_MODEL ('{model}') is supported by Bedrock."
+            )
+
+        if using_bedrock and "UnknownOperationException" in str(e):
+            error_detail += (
+                " Bedrock reported UnknownOperationException, which usually indicates an API/endpoint mismatch "
+                "for the current Bedrock auth flow. Try direct Anthropic API auth (ANTHROPIC_API_KEY) or "
+                "switch to a Bedrock integration path that supports your authentication method."
+            )
+
         logger.error(f"LLM validation error: {e}")
-        raise HTTPException(status_code=502, detail=f"LLM response error: {str(e)}")
+        raise HTTPException(status_code=502, detail=error_detail)
     except Exception as e:
         logger.error(f"Pre-annotation error: {e}", exc_info=True)
         raise HTTPException(status_code=502, detail=f"Pre-annotation failed: {str(e)}")
