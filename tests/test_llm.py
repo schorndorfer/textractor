@@ -74,24 +74,33 @@ def test_extract_medical_terms_invalid_content_payload():
 
 # ── generate_annotations_raw ──────────────────────────────────────────────────
 
-def test_get_anthropic_client_uses_bedrock_token_with_bearer_prefix():
-    """Test Bedrock token is normalized when env var includes Bearer prefix."""
+def test_extract_medical_terms_uses_boto3_in_bedrock_mode():
+    """Test Bedrock mode routes extraction through boto3 invoke path."""
+    response = {
+        "stop_reason": "tool_use",
+        "usage": {"input_tokens": 1, "output_tokens": 1},
+        "content": [
+            {
+                "type": "tool_use",
+                "input": {"terms": ["chest pain", "hypertension"]},
+            }
+        ],
+    }
+
     with patch.dict(
         "os.environ",
         {
-            "AWS_BEARER_TOKEN_BEDROCK": "  Bearer abc123token  ",
-            "AWS_REGION": "us-west-2",
+            "AWS_BEARER_TOKEN_BEDROCK": "bedrock-token",
+            "AWS_REGION": "us-east-1",
+            "TEXTRACTOR_LLM_MODEL": "anthropic.claude-sonnet-4-0-v1",
         },
         clear=False,
     ):
-        with patch("textractor.api.llm.anthropic.Anthropic") as mock_anthropic:
-            get_anthropic_client(api_key="unused-key")
+        with patch("textractor.api.llm._invoke_bedrock_messages", return_value=response) as mock_invoke:
+            terms = extract_medical_terms("Patient has chest pain", api_key="unused", model="anthropic.claude-sonnet-4-0-v1")
 
-    mock_anthropic.assert_called_once_with(
-        base_url="https://bedrock-runtime.us-west-2.amazonaws.com",
-        api_key="bedrock",
-        default_headers={"Authorization": "Bearer abc123token"},
-    )
+    assert terms == ["chest pain", "hypertension"]
+    assert mock_invoke.called
 
 
 def test_get_anthropic_client_uses_direct_api_when_bedrock_token_blank():
@@ -107,6 +116,60 @@ def test_get_anthropic_client_uses_direct_api_when_bedrock_token_blank():
             get_anthropic_client(api_key="direct-key")
 
     mock_anthropic.assert_called_once_with(api_key="direct-key")
+
+
+def test_generate_annotations_raw_uses_boto3_in_bedrock_mode():
+    """Test Bedrock mode routes annotation generation through boto3 invoke path."""
+    response = {
+        "stop_reason": "tool_use",
+        "usage": {"input_tokens": 1, "output_tokens": 1},
+        "content": [
+            {
+                "type": "tool_use",
+                "input": {
+                    "spans": [{"start": 0, "end": 10, "text": "chest pain"}],
+                    "reasoning_steps": [
+                        {
+                            "concept_code": "29857009",
+                            "concept_display": "Chest pain",
+                            "span_indices": [0],
+                        }
+                    ],
+                    "document_annotations": [
+                        {
+                            "concept_code": "29857009",
+                            "concept_display": "Chest pain",
+                            "reasoning_step_indices": [0],
+                            "category": "symptom",
+                        }
+                    ],
+                },
+            }
+        ],
+    }
+
+    with patch.dict(
+        "os.environ",
+        {
+            "AWS_BEARER_TOKEN_BEDROCK": "bedrock-token",
+            "AWS_REGION": "us-east-1",
+            "TEXTRACTOR_LLM_MODEL": "anthropic.claude-sonnet-4-0-v1",
+        },
+        clear=False,
+    ):
+        with patch("textractor.api.llm._invoke_bedrock_messages", return_value=response) as mock_invoke:
+            result = generate_annotations_raw(
+                text="Patient with chest pain",
+                snomed_candidates=[
+                    TerminologyConcept(code="29857009", display="Chest pain", system="SNOMED-CT")
+                ],
+                api_key="unused",
+                model="anthropic.claude-sonnet-4-0-v1",
+            )
+
+    assert len(result["spans"]) == 1
+    assert result["spans"][0]["text"] == "chest pain"
+    assert mock_invoke.called
 
 def test_generate_annotations_raw():
     """Test structured annotation generation"""
