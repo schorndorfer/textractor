@@ -13,6 +13,8 @@ Built with FastAPI + React.
 cp .env.example .env
 # Edit .env with your ANTHROPIC_API_KEY
 
+# docker compose automatically reads .env
+
 # Start application
 docker compose up -d
 
@@ -82,6 +84,8 @@ cd frontend && npm run build && cd ..
 
 # 5. Start the backend (serves built frontend)
 TEXTRACTOR_DOC_ROOT=./data/documents uv run textractor
+
+# textractor automatically loads .env when started from the project root
 
 # Open http://localhost:8000
 ```

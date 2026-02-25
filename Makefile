@@ -67,3 +67,7 @@ docker-clean:  ## Remove containers and volumes (WARNING: deletes data)
 docker-test:  ## Test Docker build
 	docker build -t textractor:test .
 	@echo "Docker build successful"
+
+open-app:  ## Open the application in the default web browser
+	@echo "Opening application at http://0.0.0.0:8000"
+	@xdg-open http://localhost:8000 || open http://localhost:8000

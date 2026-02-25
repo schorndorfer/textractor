@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { api } from './api/client';
+import { api, ApiError } from './api/client';
 import { AnnotationPanel } from './components/AnnotationPanel';
 import { AnnotationGraph } from './components/AnnotationGraph';
 import { DocumentList } from './components/DocumentList';
@@ -75,6 +75,10 @@ export function App() {
       refreshDocuments();
     } catch (err) {
       // Suppress 403 errors for locked documents
+      if (err instanceof ApiError && err.status === 403) {
+        return;
+      }
+
       const errorStr = String(err);
       if (!errorStr.includes('403')) {
         setSaveError(errorStr);
@@ -222,14 +226,24 @@ export function App() {
       setIsDirty(true);
 
     } catch (err) {
-      const errorStr = String(err);
       let errorMsg = 'Pre-annotation failed';
+      const status = err instanceof ApiError ? err.status : null;
+      const detail = err instanceof ApiError ? err.detail : String(err);
 
-      if (errorStr.includes('500') && errorStr.includes('ANTHROPIC_API_KEY')) {
+      if (status === 500 && detail.includes('ANTHROPIC_API_KEY')) {
         errorMsg = 'API key not configured. Please contact administrator.';
-      } else if (errorStr.includes('502')) {
+      } else if (
+        (status === 500 || status === 502) &&
+        (detail.includes('TEXTRACTOR_LLM_MODEL') ||
+          detail.includes('AWS Bedrock') ||
+          detail.includes('direct Anthropic API') ||
+          detail.includes('configured provider'))
+      ) {
+        errorMsg =
+          'LLM model/provider configuration error. Check TEXTRACTOR_LLM_MODEL for your auth mode (Bedrock vs direct Anthropic).';
+      } else if (status === 502) {
         errorMsg = 'AI service error. Please try again.';
-      } else if (errorStr.includes('403')) {
+      } else if (status === 403) {
         errorMsg = 'Cannot pre-annotate a locked document.';
       }
 

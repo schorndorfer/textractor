@@ -53,6 +53,25 @@ def test_extract_medical_terms_no_tool_use():
             assert "No tool calls found" in str(e)
 
 
+def test_extract_medical_terms_invalid_content_payload():
+    """Test clear error when SDK returns invalid content payload."""
+    mock_response = Mock()
+    mock_response.stop_reason = "error"
+    mock_response.content = None
+
+    mock_client = Mock()
+    mock_client.messages.create.return_value = mock_response
+
+    with patch("textractor.api.llm.get_anthropic_client", return_value=mock_client):
+        with patch.dict("os.environ", {"TEXTRACTOR_LLM_MODEL": "claude-sonnet-4-5"}, clear=False):
+            try:
+                extract_medical_terms("Some text", api_key="test-key", model="claude-sonnet-4-5")
+                assert False, "Should have raised ValueError"
+            except ValueError as e:
+                assert "invalid content" in str(e)
+                assert "Check TEXTRACTOR_LLM_MODEL" in str(e)
+
+
 # ── generate_annotations_raw ──────────────────────────────────────────────────
 
 def test_get_anthropic_client_uses_bedrock_token_with_bearer_prefix():
@@ -135,6 +154,32 @@ def test_generate_annotations_raw():
         assert result["spans"][0]["text"] == "chest pain"
         assert len(result["reasoning_steps"]) == 1
         assert result["reasoning_steps"][0]["concept_code"] == "29857009"
+
+
+def test_generate_annotations_raw_invalid_content_payload():
+    """Test clear error when annotation call returns invalid content payload."""
+    mock_response = Mock()
+    mock_response.stop_reason = "error"
+    mock_response.content = None
+
+    mock_client = Mock()
+    mock_client.messages.create.return_value = mock_response
+
+    with patch("textractor.api.llm.get_anthropic_client", return_value=mock_client):
+        with patch.dict("os.environ", {"TEXTRACTOR_LLM_MODEL": "claude-sonnet-4-5"}, clear=False):
+            try:
+                generate_annotations_raw(
+                    text="Patient with chest pain.",
+                    snomed_candidates=[
+                        TerminologyConcept(code="29857009", display="Chest pain", system="SNOMED-CT")
+                    ],
+                    api_key="test-key",
+                    model="claude-sonnet-4-5",
+                )
+                assert False, "Should have raised ValueError"
+            except ValueError as e:
+                assert "invalid content" in str(e)
+                assert "Check TEXTRACTOR_LLM_MODEL" in str(e)
 
 
 # ── validate_span ─────────────────────────────────────────────────────────────
