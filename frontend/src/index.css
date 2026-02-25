@@ -738,17 +738,22 @@ input { font-family: inherit; font-size: 13px; }
 }
 .panel-header h2 { font-size: 14px; font-weight: 600; flex: 1; }
 
-.completed-checkbox {
-  display: flex;
+.doc-lock-toggle {
+  display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
   cursor: pointer;
   user-select: none;
 }
 
-.completed-checkbox input[type="checkbox"] {
+.doc-lock-toggle input[type="checkbox"] {
   cursor: pointer;
+  margin: 0;
+}
+
+.doc-lock-toggle .completed-badge.unlocked {
+  background: var(--border);
+  color: var(--text-muted);
 }
 
 .save-btn {

@@ -55,13 +55,13 @@ export function App() {
   const saveAnnotations = useCallback(async () => {
     if (!annotations || !selectedDocId || isSavingRef.current) return;
 
-    // Allow saving when unlocking (completed changing from true to false)
-    // Block saving when document is locked and not being unlocked
+    // Allow saving when lock state changes (locking or unlocking)
+    // Block saving when document is already locked and lock state is unchanged
     const wasCompleted = originalAnnotations?.completed || false;
-    const isCompleted = annotations.completed;
-    const isUnlocking = wasCompleted && !isCompleted;
+    const isCompleted = annotations.completed || false;
+    const lockStateChanged = wasCompleted !== isCompleted;
 
-    if (isCompleted && !isUnlocking) {
+    if (isCompleted && !lockStateChanged) {
       // Document is locked and we're not unlocking it, don't save
       return;
     }
@@ -158,6 +158,11 @@ export function App() {
     }
   };
 
+  const handleToggleCompleted = () => {
+    if (!annotations) return;
+    handleAnnotationChange({ ...annotations, completed: !annotations.completed });
+  };
+
   // Clear errors when document lock status changes
   useEffect(() => {
     if (annotations?.completed) {
@@ -167,7 +172,14 @@ export function App() {
 
   // Debounced auto-save when annotations change
   useEffect(() => {
-    if (!isDirty || !annotations || annotations.completed || isPreAnnotated) return; // Don't auto-save locked documents or pre-annotated content
+    if (!isDirty || !annotations || isPreAnnotated) return; // Don't auto-save pre-annotated content
+
+    const wasCompleted = originalAnnotations?.completed || false;
+    const isCompleted = annotations.completed || false;
+    const lockStateChanged = wasCompleted !== isCompleted;
+
+    // Don't auto-save locked documents unless lock state changed
+    if (isCompleted && !lockStateChanged) return;
 
     // Clear existing timeout
     if (autoSaveTimeoutRef.current) {
@@ -184,7 +196,7 @@ export function App() {
         clearTimeout(autoSaveTimeoutRef.current);
       }
     };
-  }, [isDirty, annotations, isPreAnnotated, saveAnnotations]);
+  }, [isDirty, annotations, isPreAnnotated, originalAnnotations, saveAnnotations]);
 
   // Auto-save on page unload/refresh
   useEffect(() => {
@@ -346,6 +358,8 @@ export function App() {
             <DocumentList
               documents={documents}
               selectedId={selectedDocId}
+              selectedDocCompleted={annotations?.completed || false}
+              onToggleSelectedCompleted={handleToggleCompleted}
               onSelect={setSelectedDocId}
               onRefresh={refreshDocuments}
               onToggleCollapse={toggleLeftSidebar}

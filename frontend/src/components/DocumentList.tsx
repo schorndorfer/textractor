@@ -82,13 +82,24 @@ type Filter = 'all' | 'annotated' | 'unannotated' | 'completed' | 'incomplete';
 interface Props {
   documents: DocumentSummary[];
   selectedId: string | null;
+  selectedDocCompleted: boolean;
+  onToggleSelectedCompleted: () => void;
   onSelect: (id: string) => void;
   onRefresh: () => void;
   onToggleCollapse?: () => void;
   collapsed?: boolean;
 }
 
-export function DocumentList({ documents, selectedId, onSelect, onRefresh, onToggleCollapse, collapsed }: Props) {
+export function DocumentList({
+  documents,
+  selectedId,
+  selectedDocCompleted,
+  onToggleSelectedCompleted,
+  onSelect,
+  onRefresh,
+  onToggleCollapse,
+  collapsed,
+}: Props) {
   const [filter, setFilter] = useState<Filter>('all');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -577,7 +588,23 @@ export function DocumentList({ documents, selectedId, onSelect, onRefresh, onTog
                     <div className="doc-item-header">
                       <span className="doc-item-id">{doc.id}</span>
                       {doc.is_annotated && <span className="badge annotated-badge">✓</span>}
-                      {doc.is_completed && <span className="badge completed-badge">✔</span>}
+                      {doc.id === selectedId ? (
+                        <label
+                          className="doc-lock-toggle"
+                          title={selectedDocCompleted ? 'Mark incomplete (unlock)' : 'Mark completed (lock)'}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedDocCompleted}
+                            onChange={onToggleSelectedCompleted}
+                            aria-label="Completed"
+                          />
+                          <span className={`badge completed-badge${selectedDocCompleted ? '' : ' unlocked'}`}>🔒</span>
+                        </label>
+                      ) : (
+                        doc.is_completed && <span className="badge completed-badge">🔒</span>
+                      )}
                       <button
                         className="doc-action-btn"
                         onClick={(e) => handleDeleteDocument(doc.id, e)}

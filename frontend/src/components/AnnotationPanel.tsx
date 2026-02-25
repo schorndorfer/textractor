@@ -88,10 +88,6 @@ export function AnnotationPanel({
     onChange({ ...annotations, document_annotations: docAnns });
   };
 
-  const toggleCompleted = () => {
-    onChange({ ...annotations, completed: !annotations.completed });
-  };
-
   const handlePreAnnotate = () => {
     const hasExistingAnnotations =
       annotations.spans.length > 0 ||
@@ -169,14 +165,6 @@ export function AnnotationPanel({
         <button onClick={onRevert} disabled={!isDirty || isLocked} className={`save-btn${isDirty ? ' dirty' : ''}`}>
           Revert
         </button>
-        <label className="completed-checkbox">
-          <input
-            type="checkbox"
-            checked={annotations.completed || false}
-            onChange={toggleCompleted}
-          />
-          <span>Completed</span>
-        </label>
       </div>
       {isPreAnnotating && (
         <div className="preannotate-loading">
@@ -188,7 +176,7 @@ export function AnnotationPanel({
       )}
       {isLocked && (
         <div className="locked-notice">
-          <p>🔒 This document is locked. Uncheck "Completed" to make changes.</p>
+          <p>🔒 This document is locked. Use the lock toggle in the document list to unlock and edit.</p>
         </div>
       )}
 
