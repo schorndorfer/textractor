@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
 from typing import Any
 
 import anthropic
+import boto3
+from botocore.exceptions import BotoCoreError, ClientError
 from rapidfuzz import fuzz
 
 from .models import AnnotationFile, Concept, DocumentAnnotation, ReasoningStep, Span, TerminologyConcept
@@ -21,12 +24,75 @@ def _llm_runtime_context() -> str:
     return f"auth_mode={auth_mode}, model={model_desc}"
 
 
+def _is_bedrock_mode() -> bool:
+    bedrock_token_raw = os.environ.get("AWS_BEARER_TOKEN_BEDROCK")
+    bedrock_token = bedrock_token_raw.strip() if bedrock_token_raw else ""
+    return bool(bedrock_token)
+
+
+def _response_get(response: Any, key: str, default: Any = None) -> Any:
+    if isinstance(response, dict):
+        return response.get(key, default)
+    return getattr(response, key, default)
+
+
+def _tool_call_input(tool_call: Any) -> dict[str, Any]:
+    if isinstance(tool_call, dict):
+        tool_input = tool_call.get("input", {})
+        return tool_input if isinstance(tool_input, dict) else {}
+
+    tool_input = getattr(tool_call, "input", {})
+    return tool_input if isinstance(tool_input, dict) else {}
+
+
+def _invoke_bedrock_messages(
+    *,
+    model: str,
+    prompt: str,
+    tools: list[dict[str, Any]],
+    max_tokens: int,
+    temperature: float,
+) -> dict[str, Any]:
+    aws_region = os.environ.get("AWS_REGION", "us-east-1")
+    client = boto3.client("bedrock-runtime", region_name=aws_region)
+
+    request_body = {
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "tools": tools,
+        "messages": [{"role": "user", "content": prompt}],
+    }
+
+    try:
+        response = client.invoke_model(
+            modelId=model,
+            contentType="application/json",
+            accept="application/json",
+            body=json.dumps(request_body),
+        )
+    except (ClientError, BotoCoreError) as exc:
+        raise ValueError(f"Bedrock invoke_model error: {exc}") from exc
+
+    raw_body = response.get("body")
+    if raw_body is None:
+        return {}
+
+    body_bytes = raw_body.read()
+    body_text = body_bytes.decode("utf-8") if isinstance(body_bytes, (bytes, bytearray)) else str(body_bytes)
+
+    try:
+        return json.loads(body_text)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Bedrock returned non-JSON response: {body_text[:300]}") from exc
+
+
 def _extract_tool_calls(response: Any, stage: str) -> list[Any]:
-    response_content = getattr(response, "content", None)
+    response_content = _response_get(response, "content", None)
 
     if not isinstance(response_content, list):
         context = _llm_runtime_context()
-        stop_reason = getattr(response, "stop_reason", None)
+        stop_reason = _response_get(response, "stop_reason", None)
         logger.error(
             "%s: invalid LLM content payload type=%s stop_reason=%s (%s)",
             stage,
@@ -35,7 +101,7 @@ def _extract_tool_calls(response: Any, stage: str) -> list[Any]:
             context,
         )
 
-        response_error = getattr(response, "error", None)
+        response_error = _response_get(response, "error", None)
         if response_error:
             response_summary = f"provider_error={response_error}"
         else:
@@ -46,10 +112,14 @@ def _extract_tool_calls(response: Any, stage: str) -> list[Any]:
             f"Check TEXTRACTOR_LLM_MODEL is valid for the configured provider. {response_summary}"
         )
 
-    tool_calls = [block for block in response_content if getattr(block, "type", None) == "tool_use"]
+    tool_calls = []
+    for block in response_content:
+        block_type = block.get("type") if isinstance(block, dict) else getattr(block, "type", None)
+        if block_type == "tool_use":
+            tool_calls.append(block)
 
     if not tool_calls:
-        logger.error(f"No tool calls found. stop_reason={response.stop_reason}, response={response}")
+        logger.error(f"No tool calls found. stop_reason={_response_get(response, 'stop_reason', None)}, response={response}")
         raise ValueError("No tool calls found in LLM response")
 
     return tool_calls
@@ -134,8 +204,6 @@ def extract_medical_terms(text: str, api_key: str, model: str = "claude-sonnet-4
         ValueError: If LLM response is invalid
         anthropic.APIError: If API call fails
     """
-    client = get_anthropic_client(api_key=api_key)
-
     tools = [
         {
             "name": "extract_medical_terms",
@@ -171,28 +239,43 @@ Be thorough but only include medically significant terms."""
     max_tokens = int(os.environ.get("TEXTRACTOR_LLM_MAX_TOKENS_EXTRACT", "4096"))
     temperature = float(os.environ.get("TEXTRACTOR_LLM_TEMPERATURE", "0.0"))
 
-    response = client.messages.create(
-        model=model,
-        max_tokens=max_tokens,
-        temperature=temperature,
-        tools=tools,
-        messages=[{"role": "user", "content": prompt}],
-    )
+    if _is_bedrock_mode():
+        response = _invoke_bedrock_messages(
+            model=model,
+            prompt=prompt,
+            tools=tools,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+    else:
+        client = get_anthropic_client(api_key=api_key)
+        response = client.messages.create(
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            tools=tools,
+            messages=[{"role": "user", "content": prompt}],
+        )
 
-    logger.info(f"Term extraction: stop_reason={response.stop_reason}, usage={response.usage}")
+    logger.info(
+        "Term extraction: stop_reason=%s, usage=%s",
+        _response_get(response, "stop_reason", None),
+        _response_get(response, "usage", None),
+    )
 
     # Check for tool calls first
     tool_calls = _extract_tool_calls(response, stage="term_extraction")
 
     # Accept tool_use or max_tokens if we have a valid tool call
-    if response.stop_reason not in ("tool_use", "max_tokens"):
-        logger.error(f"LLM stop_reason was '{response.stop_reason}', expected 'tool_use' or 'max_tokens'. Response: {response}")
-        raise ValueError(f"LLM did not return structured output (stop_reason: {response.stop_reason})")
+    stop_reason = _response_get(response, "stop_reason", None)
+    if stop_reason not in ("tool_use", "max_tokens"):
+        logger.error(f"LLM stop_reason was '{stop_reason}', expected 'tool_use' or 'max_tokens'. Response: {response}")
+        raise ValueError(f"LLM did not return structured output (stop_reason: {stop_reason})")
 
-    if response.stop_reason == "max_tokens":
+    if stop_reason == "max_tokens":
         logger.warning(f"Term extraction hit max_tokens limit but found valid tool call, proceeding anyway")
 
-    tool_input = tool_calls[0].input
+    tool_input = _tool_call_input(tool_calls[0])
     terms = tool_input.get("terms", [])
 
     logger.info(f"Extracted {len(terms)} medical terms")
@@ -237,8 +320,6 @@ def generate_annotations_raw(
         ValueError: If LLM response is invalid
         anthropic.APIError: If API call fails
     """
-    client = get_anthropic_client(api_key=api_key)
-
     # Format SNOMED candidates for prompt
     snomed_list = "\n".join(
         f"- {c.code}: {c.display}" for c in snomed_candidates
@@ -351,28 +432,43 @@ Return structured annotations following the tool schema."""
     max_tokens = int(os.environ.get("TEXTRACTOR_LLM_MAX_TOKENS_ANNOTATE", "16384"))
     temperature = float(os.environ.get("TEXTRACTOR_LLM_TEMPERATURE", "0.0"))
 
-    response = client.messages.create(
-        model=model,
-        max_tokens=max_tokens,
-        temperature=temperature,
-        tools=tools,
-        messages=[{"role": "user", "content": prompt}],
-    )
+    if _is_bedrock_mode():
+        response = _invoke_bedrock_messages(
+            model=model,
+            prompt=prompt,
+            tools=tools,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+    else:
+        client = get_anthropic_client(api_key=api_key)
+        response = client.messages.create(
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            tools=tools,
+            messages=[{"role": "user", "content": prompt}],
+        )
 
-    logger.info(f"Annotation generation: stop_reason={response.stop_reason}, usage={response.usage}")
+    logger.info(
+        "Annotation generation: stop_reason=%s, usage=%s",
+        _response_get(response, "stop_reason", None),
+        _response_get(response, "usage", None),
+    )
 
     # Check for tool calls first
     tool_calls = _extract_tool_calls(response, stage="annotation_generation")
 
     # Accept tool_use or max_tokens if we have a valid tool call
-    if response.stop_reason not in ("tool_use", "max_tokens"):
-        logger.error(f"LLM stop_reason was '{response.stop_reason}', expected 'tool_use' or 'max_tokens'. Response: {response}")
-        raise ValueError(f"LLM did not return structured output (stop_reason: {response.stop_reason})")
+    stop_reason = _response_get(response, "stop_reason", None)
+    if stop_reason not in ("tool_use", "max_tokens"):
+        logger.error(f"LLM stop_reason was '{stop_reason}', expected 'tool_use' or 'max_tokens'. Response: {response}")
+        raise ValueError(f"LLM did not return structured output (stop_reason: {stop_reason})")
 
-    if response.stop_reason == "max_tokens":
+    if stop_reason == "max_tokens":
         logger.warning(f"Annotation generation hit max_tokens limit but found valid tool call, proceeding anyway")
 
-    annotations = tool_calls[0].input
+    annotations = _tool_call_input(tool_calls[0])
 
     logger.info(
         f"Generated {len(annotations.get('spans', []))} spans, "
