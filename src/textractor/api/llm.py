@@ -24,75 +24,12 @@ def _llm_runtime_context() -> str:
     return f"auth_mode={auth_mode}, model={model_desc}"
 
 
-def _is_bedrock_mode() -> bool:
-    bedrock_token_raw = os.environ.get("AWS_BEARER_TOKEN_BEDROCK")
-    bedrock_token = bedrock_token_raw.strip() if bedrock_token_raw else ""
-    return bool(bedrock_token)
-
-
-def _response_get(response: Any, key: str, default: Any = None) -> Any:
-    if isinstance(response, dict):
-        return response.get(key, default)
-    return getattr(response, key, default)
-
-
-def _tool_call_input(tool_call: Any) -> dict[str, Any]:
-    if isinstance(tool_call, dict):
-        tool_input = tool_call.get("input", {})
-        return tool_input if isinstance(tool_input, dict) else {}
-
-    tool_input = getattr(tool_call, "input", {})
-    return tool_input if isinstance(tool_input, dict) else {}
-
-
-def _invoke_bedrock_messages(
-    *,
-    model: str,
-    prompt: str,
-    tools: list[dict[str, Any]],
-    max_tokens: int,
-    temperature: float,
-) -> dict[str, Any]:
-    aws_region = os.environ.get("AWS_REGION", "us-east-1")
-    client = boto3.client("bedrock-runtime", region_name=aws_region)
-
-    request_body = {
-        "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": max_tokens,
-        "temperature": temperature,
-        "tools": tools,
-        "messages": [{"role": "user", "content": prompt}],
-    }
-
-    try:
-        response = client.invoke_model(
-            modelId=model,
-            contentType="application/json",
-            accept="application/json",
-            body=json.dumps(request_body),
-        )
-    except (ClientError, BotoCoreError) as exc:
-        raise ValueError(f"Bedrock invoke_model error: {exc}") from exc
-
-    raw_body = response.get("body")
-    if raw_body is None:
-        return {}
-
-    body_bytes = raw_body.read()
-    body_text = body_bytes.decode("utf-8") if isinstance(body_bytes, (bytes, bytearray)) else str(body_bytes)
-
-    try:
-        return json.loads(body_text)
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"Bedrock returned non-JSON response: {body_text[:300]}") from exc
-
-
 def _extract_tool_calls(response: Any, stage: str) -> list[Any]:
-    response_content = _response_get(response, "content", None)
+    response_content = getattr(response, "content", None)
 
     if not isinstance(response_content, list):
         context = _llm_runtime_context()
-        stop_reason = _response_get(response, "stop_reason", None)
+        stop_reason = getattr(response, "stop_reason", None)
         logger.error(
             "%s: invalid LLM content payload type=%s stop_reason=%s (%s)",
             stage,
@@ -101,7 +38,7 @@ def _extract_tool_calls(response: Any, stage: str) -> list[Any]:
             context,
         )
 
-        response_error = _response_get(response, "error", None)
+        response_error = getattr(response, "error", None)
         if response_error:
             response_summary = f"provider_error={response_error}"
         else:
@@ -112,14 +49,10 @@ def _extract_tool_calls(response: Any, stage: str) -> list[Any]:
             f"Check TEXTRACTOR_LLM_MODEL is valid for the configured provider. {response_summary}"
         )
 
-    tool_calls = []
-    for block in response_content:
-        block_type = block.get("type") if isinstance(block, dict) else getattr(block, "type", None)
-        if block_type == "tool_use":
-            tool_calls.append(block)
+    tool_calls = [block for block in response_content if getattr(block, "type", None) == "tool_use"]
 
     if not tool_calls:
-        logger.error(f"No tool calls found. stop_reason={_response_get(response, 'stop_reason', None)}, response={response}")
+        logger.error(f"No tool calls found. stop_reason={response.stop_reason}, response={response}")
         raise ValueError("No tool calls found in LLM response")
 
     return tool_calls
