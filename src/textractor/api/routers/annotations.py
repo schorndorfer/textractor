@@ -71,9 +71,13 @@ def save_annotations(
     ann_store: SQLiteAnnotationStore = Depends(get_annotation_store),
 ) -> AnnotationFile:
     """Save annotations as a new version."""
+    import logging
+    logger = logging.getLogger(__name__)
+
     if not doc_store.document_exists(doc_id):
         raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
     if ann.doc_id != doc_id:
+        logger.error(f"doc_id mismatch: URL={doc_id}, body={ann.doc_id}")
         raise HTTPException(
             status_code=400, detail="doc_id in body does not match URL parameter"
         )
@@ -85,6 +89,7 @@ def save_annotations(
             detail="Cannot modify annotations for a completed document. Uncheck 'Completed' first to make changes.",
         )
 
+    logger.info(f"Saving annotations for {doc_id}: {len(ann.spans)} spans, {len(ann.reasoning_steps)} steps, {len(ann.document_annotations)} annotations")
     _validate_referential_integrity(ann)
     ann_store.save_annotations(doc_id, ann, annotator=annotator, source="human")
     return ann

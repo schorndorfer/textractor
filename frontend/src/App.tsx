@@ -27,7 +27,6 @@ export function App() {
   const [activeTab, setActiveTab] = useState<'document' | 'graph'>('document');
 
   // Pre-annotation state
-  const [isPreAnnotated, setIsPreAnnotated] = useState(false);
   const [preAnnotateLoading, setPreAnnotateLoading] = useState(false);
   const [preAnnotateError, setPreAnnotateError] = useState<string | null>(null);
 
@@ -69,7 +68,9 @@ export function App() {
     isSavingRef.current = true;
     setSaveError(null);
     try {
-      await api.saveAnnotations(selectedDocId, annotations);
+      // Use annotations.doc_id (source of truth) instead of selectedDocId
+      // to avoid doc_id mismatch during document switching
+      await api.saveAnnotations(annotations.doc_id, annotations);
       setIsDirty(false);
       setOriginalAnnotations(deepClone(annotations));
       refreshDocuments();
@@ -114,7 +115,6 @@ export function App() {
       setLoading(true);
       setSelectedAnnotationId(null); // Clear selection when switching documents
       setFocusedSpanId(null); // Clear focused span when switching documents
-      setIsPreAnnotated(false); // Clear pre-annotated flag
       setPreAnnotateError(null); // Clear pre-annotate errors
 
       try {
@@ -150,12 +150,6 @@ export function App() {
     }
     setAnnotations(updated);
     setIsDirty(true);
-
-    // Clear pre-annotated flag on manual edit
-    // This allows auto-save to resume
-    if (isPreAnnotated) {
-      setIsPreAnnotated(false);
-    }
   };
 
   const handleToggleCompleted = () => {
@@ -172,7 +166,7 @@ export function App() {
 
   // Debounced auto-save when annotations change
   useEffect(() => {
-    if (!isDirty || !annotations || isPreAnnotated) return; // Don't auto-save pre-annotated content
+    if (!isDirty || !annotations) return;
 
     const wasCompleted = originalAnnotations?.completed || false;
     const isCompleted = annotations.completed || false;
@@ -196,7 +190,7 @@ export function App() {
         clearTimeout(autoSaveTimeoutRef.current);
       }
     };
-  }, [isDirty, annotations, isPreAnnotated, originalAnnotations, saveAnnotations]);
+  }, [isDirty, annotations, originalAnnotations, saveAnnotations]);
 
   // Auto-save on page unload/refresh
   useEffect(() => {
@@ -219,7 +213,6 @@ export function App() {
       setIsDirty(false);
       setSaveError(null);
       setPreAnnotateError(null); // Clear pre-annotate errors
-      setIsPreAnnotated(false); // Clear pre-annotated flag
     }
   };
 
@@ -232,10 +225,14 @@ export function App() {
     try {
       const aiAnnotations = await api.preannotateDocument(selectedDocId);
 
-      // Load AI annotations as unsaved changes
+      // Load AI annotations and mark as dirty to trigger auto-save
       setAnnotations(aiAnnotations);
-      setIsPreAnnotated(true);
-      setIsDirty(true);
+      setOriginalAnnotations(deepClone(aiAnnotations)); // Update baseline to prevent revert
+      setIsDirty(false); // Not dirty since we just loaded fresh AI content
+
+      // Explicitly save the AI-generated annotations immediately
+      await api.saveAnnotations(aiAnnotations.doc_id, aiAnnotations);
+      refreshDocuments();
 
     } catch (err) {
       let errorMsg = 'Pre-annotation failed';

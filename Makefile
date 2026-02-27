@@ -37,8 +37,8 @@ test-verbose:  ## Run backend tests with verbose output
 	uv run pytest -v
 
 # Docker commands
-docker-build:  ## Build Docker image
-	docker build -t textractor:latest .
+docker-build:  ## Build Docker image ## docker build -t textractor:latest .
+	docker compose build --no-cache
 
 docker-up:  ## Start application with docker-compose
 	docker compose up -d
