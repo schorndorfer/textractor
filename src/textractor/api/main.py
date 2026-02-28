@@ -29,7 +29,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     init_annotation_store(db_path)
 
     # Initialize terminology index
-    init_terminology(snomed_dir=snomed_dir)
+    icd10cm_file_path = os.environ.get("TEXTRACTOR_ICD10CM_FILE", "./data/terminology/icd10cm_codes.txt")
+    icd10cm_file = Path(icd10cm_file_path) if icd10cm_file_path else None
+
+    init_terminology(snomed_dir=snomed_dir, icd10cm_file=icd10cm_file)
     yield
 
 

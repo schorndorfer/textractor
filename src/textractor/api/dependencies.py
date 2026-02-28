@@ -20,23 +20,32 @@ def init_store(root: Path) -> None:
     _store = DocumentStore(root)
 
 
-def init_terminology(snomed_dir: Optional[Path] = None) -> None:
+def init_terminology(
+    snomed_dir: Optional[Path] = None,
+    icd10cm_file: Optional[Path] = None,
+) -> None:
     """
-    Initialize SNOMED CT terminology index.
+    Initialize terminology indices (SNOMED CT and/or ICD-10-CM).
 
     Args:
-        snomed_dir: Optional path to SNOMED CT RF2 directory (data/terminology/SnomedCT)
+        snomed_dir: Optional path to SNOMED CT RF2 directory
+        icd10cm_file: Optional path to CMS ICD-10-CM flat file
     """
     global _terminology
 
-    # Use SQLite database if SNOMED directory exists
     db_path = None
     if snomed_dir and snomed_dir.exists():
         db_path = snomed_dir.parent / "snomed.db"
 
-    _terminology = EnhancedTerminologyIndex(db_path=db_path)
+    icd10cm_db_path = None
+    if icd10cm_file and icd10cm_file.exists():
+        icd10cm_db_path = icd10cm_file.parent / "icd10cm.db"
 
-    # Load SNOMED CT if directory exists
+    _terminology = EnhancedTerminologyIndex(
+        db_path=db_path,
+        icd10cm_db_path=icd10cm_db_path,
+    )
+
     if snomed_dir and snomed_dir.exists():
         count = _terminology.load_snomed(snomed_dir)
         if count > 0:
@@ -44,7 +53,16 @@ def init_terminology(snomed_dir: Optional[Path] = None) -> None:
         else:
             logger.warning("Failed to load SNOMED CT from %s", snomed_dir)
     else:
-        logger.info("No SNOMED directory provided - terminology search will be empty")
+        logger.info("No SNOMED directory provided — SNOMED search unavailable")
+
+    if icd10cm_file and icd10cm_file.exists():
+        count = _terminology.load_icd10cm(icd10cm_file)
+        if count > 0:
+            logger.info("Loaded ICD-10-CM with %d codes", count)
+        else:
+            logger.warning("Failed to load ICD-10-CM from %s", icd10cm_file)
+    else:
+        logger.info("No ICD-10-CM file provided — ICD-10-CM search unavailable")
 
 
 def get_store() -> DocumentStore:
