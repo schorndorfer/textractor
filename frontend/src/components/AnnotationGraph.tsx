@@ -75,7 +75,7 @@ export function AnnotationGraph({
           >
             <div className="node-label">
               {selectedAnn.source === 'model' && (
-                <span className="ai-badge" title="Model-generated">✨</span>
+                <span className="ai-badge" title="Model-generated">⚙</span>
               )}
               {selectedAnn.concept.display}
             </div>
@@ -113,7 +113,7 @@ export function AnnotationGraph({
             >
               <div className="node-label">
                 {step.source === 'model' && (
-                  <span className="ai-badge" title="Model-generated">✨</span>
+                  <span className="ai-badge" title="Model-generated">⚙</span>
                 )}
                 {step.concept.display}
               </div>
