@@ -1,5 +1,4 @@
 """ICD-10-CM search using SQLite FTS5 full-text search."""
-import csv
 import logging
 import sqlite3
 import threading
@@ -37,7 +36,7 @@ class ICD10CMSearch:
         Build SQLite FTS5 index from CMS ICD-10-CM flat file.
 
         Args:
-            file_path: Path to tab-delimited file (no header): code TAB description
+            file_path: Path to CMS flat file (no header): code whitespace-separated description
 
         Returns:
             Number of codes indexed
@@ -58,11 +57,11 @@ class ICD10CMSearch:
             count = 0
             batch = []
             with open(file_path, "r", encoding="utf-8") as f:
-                reader = csv.reader(f, delimiter="\t")
-                for row in reader:
-                    if len(row) < 2:
+                for line in f:
+                    parts = line.strip().split(None, 1)
+                    if len(parts) < 2:
                         continue
-                    code, description = row[0].strip(), row[1].strip()
+                    code, description = parts[0], parts[1]
                     if code and description:
                         batch.append((code, description))
                         count += 1
