@@ -180,7 +180,7 @@ export function AnnotationPanel({
           🗑️ Clear All
         </button>
         <button onClick={onRevert} disabled={!isDirty || isLocked} className={`save-btn${isDirty ? ' dirty' : ''}`}>
-          Revert
+          Undo
         </button>
       </div>
       {isPreAnnotating && (

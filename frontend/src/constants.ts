@@ -36,7 +36,7 @@ export const FONT_SIZE = {
 
 // Auto-save configuration
 export const AUTO_SAVE = {
-  DEBOUNCE_MS: 3000, // 3 seconds after last change
+  DEBOUNCE_MS: 1000, // 1 second after last change
 };
 
 // Search configuration
