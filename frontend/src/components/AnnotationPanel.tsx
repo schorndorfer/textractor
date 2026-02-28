@@ -8,8 +8,8 @@ import { SpanList } from './SpanList';
 interface Props {
   annotations: AnnotationFile;
   onChange: (ann: AnnotationFile) => void;
-  onRevert: () => void;
-  isDirty: boolean;
+  onUndo: () => void;
+  canUndo: boolean;
   saveError: string | null;
   spanColorMap: SpanColorMap;
   docAnnColorMap: SpanColorMap;
@@ -30,8 +30,8 @@ interface Props {
 export function AnnotationPanel({
   annotations,
   onChange,
-  onRevert,
-  isDirty,
+  onUndo,
+  canUndo,
   saveError,
   spanColorMap,
   docAnnColorMap,
@@ -179,7 +179,7 @@ export function AnnotationPanel({
         >
           🗑️ Clear All
         </button>
-        <button onClick={onRevert} disabled={!isDirty || isLocked} className={`save-btn${isDirty ? ' dirty' : ''}`}>
+        <button onClick={onUndo} disabled={!canUndo || isLocked} className={`save-btn${canUndo ? ' dirty' : ''}`}>
           Undo
         </button>
       </div>

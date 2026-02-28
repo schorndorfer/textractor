@@ -20,6 +20,7 @@ export function App() {
   const [annotations, setAnnotations] = useState<AnnotationFile | null>(null);
   const [originalAnnotations, setOriginalAnnotations] = useState<AnnotationFile | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+  const [undoStack, setUndoStack] = useState<AnnotationFile[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
@@ -142,6 +143,7 @@ export function App() {
         setAnnotations(ann);
         setOriginalAnnotations(deepClone(ann));
         setIsDirty(false);
+        setUndoStack([]);
         setSaveError(null);
       } catch (error) {
         console.error(error);
@@ -155,6 +157,7 @@ export function App() {
 
   const handleSpanCreated = (span: Span) => {
     if (!annotations || annotations.completed) return; // Don't create spans in locked documents
+    setUndoStack((prev) => [...prev.slice(-49), deepClone(annotations)]);
     setAnnotations({ ...annotations, spans: [...annotations.spans, span] });
     setIsDirty(true);
   };
@@ -164,6 +167,7 @@ export function App() {
     if (annotations?.completed && updated.completed) {
       return;
     }
+    setUndoStack((prev) => [...prev.slice(-49), deepClone(annotations!)]);
     setAnnotations(updated);
     setIsDirty(true);
   };
@@ -223,13 +227,14 @@ export function App() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isDirty, annotations, selectedDocId, saveAnnotations]);
 
-  const handleRevert = () => {
-    if (originalAnnotations) {
-      setAnnotations(deepClone(originalAnnotations));
-      setIsDirty(false);
-      setSaveError(null);
-      setPreAnnotateError(null); // Clear pre-annotate errors
-    }
+  const handleUndo = () => {
+    if (undoStack.length === 0) return;
+    const previous = undoStack[undoStack.length - 1];
+    setUndoStack((prev) => prev.slice(0, -1));
+    setAnnotations(deepClone(previous));
+    setIsDirty(true);
+    setSaveError(null);
+    setPreAnnotateError(null);
   };
 
   const handlePreAnnotate = async () => {
@@ -243,7 +248,8 @@ export function App() {
 
       // Load AI annotations and mark as dirty to trigger auto-save
       setAnnotations(aiAnnotations);
-      setOriginalAnnotations(deepClone(aiAnnotations)); // Update baseline to prevent revert
+      setOriginalAnnotations(deepClone(aiAnnotations));
+      setUndoStack([]); // Pre-annotate is a checkpoint — clear undo history
       setIsDirty(false); // Not dirty since we just loaded fresh AI content
 
       // Explicitly save the AI-generated annotations immediately
@@ -459,8 +465,8 @@ export function App() {
               <AnnotationPanel
                 annotations={annotations}
                 onChange={handleAnnotationChange}
-                onRevert={handleRevert}
-                isDirty={isDirty}
+                onUndo={handleUndo}
+                canUndo={undoStack.length > 0}
                 saveError={saveError}
                 spanColorMap={spanColorMap}
                 docAnnColorMap={docAnnColorMap}
