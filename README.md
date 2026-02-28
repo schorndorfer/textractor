@@ -112,26 +112,42 @@ The `metadata` field is optional and can contain any key-value pairs. Place thes
 
 ---
 
-## SNOMED CT Terminology
+## Terminology Search
 
-Textractor uses **SNOMED CT** for clinical terminology search via SQLite FTS5 (full-text search).
+Textractor supports two clinical terminology systems for concept search. Both use SQLite FTS5 (full-text search) with trigram tokenization and custom relevance scoring. When multiple systems are loaded, a **terminology selector dropdown** appears in the annotation panel.
 
-### Setup
+### SNOMED CT
 
-1. Download SNOMED CT RF2 files
+1. Download SNOMED CT RF2 files from [SNOMED International](https://www.snomed.org/snomed-ct/get-snomed)
 2. Place them in `data/terminology/SnomedCT/`
-3. On first startup, Textractor automatically builds a searchable SQLite database at `data/terminology/snomed.db`
+3. On first startup, Textractor builds a searchable SQLite database at `data/terminology/snomed.db`
 4. Subsequent startups reuse the existing database (instant load)
 
-### Features
+**Characteristics:**
+- ~2.6M descriptions, ~50MB RAM footprint
+- Hierarchical clinical concepts with rich synonyms
 
-- **Persistent storage**: Database built once, ~50MB RAM footprint
-- **Fast full-text search**: FTS5 with trigram tokenization for substring matching
-- **2.6M+ SNOMED descriptions**: Comprehensive clinical vocabulary
+### ICD-10-CM
+
+1. Download the CMS ICD-10-CM flat file from [CMS ICD-10 codes](https://www.cms.gov/medicare/coding-billing/icd-10-codes)
+   - Look for the "Code Descriptions in Tabular Order" ZIP — the file inside is named `icd10cm_codes_YYYY.txt`
+2. Place it at `data/terminology/icd10cm_codes.txt` (or set `TEXTRACTOR_ICD10CM_FILE`)
+3. On first startup, Textractor builds a searchable SQLite database at `data/terminology/icd10cm.db`
+4. Subsequent startups reuse the existing database (instant load)
+
+**Characteristics:**
+- ~78,000 billable codes with plain-English descriptions
+- Ideal for final coding assignments
+- File format: space-separated, no header, one code per line
+
+### Common Features
+
+- **Persistent storage**: Database built once, instant subsequent startups
+- **Fast full-text search**: FTS5 trigram tokenization for substring matching
 - **Smart ranking**: Multi-factor scoring (exact match, prefix, word boundary, position)
-- **Deduplication**: One result per concept ID
+- **Deduplication**: One result per code/concept ID
 
-If SNOMED CT is not available, the terminology search will be empty.
+If neither terminology system is available, the concept search fields will be empty.
 
 ---
 
@@ -266,8 +282,8 @@ The backend exposes a REST API documented interactively at `http://localhost:800
 | `GET` | `/api/documents/{id}/annotations` | Get current annotations (empty structure if none) |
 | `PUT` | `/api/documents/{id}/annotations` | Save annotations (validates all ID references, enforces locks) |
 | `POST` | `/api/documents/{id}/preannotate` | Generate AI annotations using Claude (requires `ANTHROPIC_API_KEY`) |
-| `GET` | `/api/terminology/search?q=&limit=` | Search SNOMED CT concepts by full-text query |
-| `GET` | `/api/terminology/info` | Terminology load status and concept count |
+| `GET` | `/api/terminology/search?q=&limit=&system=` | Search terminology concepts (`system`: `SNOMED-CT` or `ICD-10-CM`, default `SNOMED-CT`) |
+| `GET` | `/api/terminology/info` | Terminology load status, loaded systems, and concept counts |
 
 ### Document Locking
 
@@ -308,8 +324,9 @@ textractor/
 │   │   │   ├── annotations.py
 │   │   │   └── terminology.py
 │   │   └── main.py       # App factory
-│   └── terminology/      # SNOMED CT SQLite search
-│       └── snomed.py     # FTS5 implementation
+│   └── terminology/      # Terminology SQLite search
+│       ├── snomed.py     # SNOMED CT FTS5 implementation
+│       └── icd10cm.py    # ICD-10-CM FTS5 implementation
 ├── frontend/             # React + TypeScript UI
 │   ├── src/
 │   │   ├── components/   # UI components
@@ -325,9 +342,11 @@ textractor/
 │   └── test_terminology_integration.py
 └── data/
     ├── documents/        # Document storage (.json + .ann.json)
-    └── terminology/      # SNOMED CT RF2 files
-        ├── SnomedCT/     # Place RF2 files here
-        └── snomed.db     # Auto-generated SQLite database
+    └── terminology/         # Terminology files
+        ├── SnomedCT/        # Place SNOMED CT RF2 files here
+        ├── snomed.db        # Auto-generated SQLite database
+        ├── icd10cm_codes.txt  # CMS ICD-10-CM flat file (download separately)
+        └── icd10cm.db       # Auto-generated SQLite database
 ```
 
 ---
@@ -337,11 +356,14 @@ textractor/
 | Environment Variable | Default | Description |
 |---|---|---|
 | `TEXTRACTOR_DOC_ROOT` | `./data/documents` | Directory scanned recursively for `*.json` documents |
+| `TEXTRACTOR_DB_PATH` | `./data/textractor.db` | SQLite database for annotation storage |
+| `TEXTRACTOR_SNOMED_DIR` | `./data/terminology/SnomedCT` | Directory containing SNOMED CT RF2 files |
+| `TEXTRACTOR_ICD10CM_FILE` | `./data/terminology/icd10cm_codes.txt` | Path to CMS ICD-10-CM flat file |
 | `ANTHROPIC_API_KEY` | *(required for AI)* | API key for Claude AI pre-annotation |
 | `TEXTRACTOR_LLM_MODEL` | `claude-sonnet-4-5` | Model name for AI annotation generation |
 | `TEXTRACTOR_FUZZY_THRESHOLD` | `90` | Minimum similarity (0-100) for span offset recovery |
 
-SNOMED CT is automatically loaded from `data/terminology/SnomedCT/` if present.
+Terminology systems are loaded automatically at startup if their files/directories exist.
 
 ---
 
@@ -394,7 +416,9 @@ TEXTRACTOR_DOC_ROOT=/path/to/documents uv run textractor
 
 The app is then available at `http://localhost:8000`.
 
-For SNOMED CT support, ensure RF2 files are in `data/terminology/SnomedCT/` before first startup.
+For terminology support, ensure files are in place before first startup:
+- **SNOMED CT**: RF2 files in `data/terminology/SnomedCT/`
+- **ICD-10-CM**: CMS flat file at `data/terminology/icd10cm_codes.txt`
 
 ### Available Make Commands
 
@@ -415,6 +439,7 @@ Run `make help` to see all available commands:
 - ✅ **Clinical Filtering** - AI annotations filtered to clinical concepts only
 - ✅ **Hierarchy Enforcement** - Strict evidence traceability (spans → steps → annotations)
 - ✅ **Clear All Button** - Delete all annotations with confirmation
+- ✅ **ICD-10-CM Integration** - Full-text search across ~78,000 billable codes with terminology selector dropdown
 - ✅ **SNOMED CT Integration** - Full-text search across 2.6M+ clinical concepts
 - ✅ **SQLite FTS5** - Persistent, low-memory terminology search
 - ✅ **Auto-Save** - Annotations save automatically with revert capability
