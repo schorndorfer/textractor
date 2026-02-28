@@ -54,31 +54,35 @@ class ICD10CMSearch:
         """)
         cursor.execute("DELETE FROM icd10cm_fts")
 
-        count = 0
-        batch = []
-        with open(file_path, "r", encoding="utf-8") as f:
-            reader = csv.reader(f, delimiter="\t")
-            for row in reader:
-                if len(row) < 2:
-                    continue
-                code, description = row[0].strip(), row[1].strip()
-                if code and description:
-                    batch.append((code, description))
-                    count += 1
-                    if len(batch) >= 10000:
-                        cursor.executemany(
-                            "INSERT INTO icd10cm_fts (code, description) VALUES (?, ?)",
-                            batch,
-                        )
-                        batch = []
+        try:
+            count = 0
+            batch = []
+            with open(file_path, "r", encoding="utf-8") as f:
+                reader = csv.reader(f, delimiter="\t")
+                for row in reader:
+                    if len(row) < 2:
+                        continue
+                    code, description = row[0].strip(), row[1].strip()
+                    if code and description:
+                        batch.append((code, description))
+                        count += 1
+                        if len(batch) >= 10000:
+                            cursor.executemany(
+                                "INSERT INTO icd10cm_fts (code, description) VALUES (?, ?)",
+                                batch,
+                            )
+                            batch = []
 
-        if batch:
-            cursor.executemany(
-                "INSERT INTO icd10cm_fts (code, description) VALUES (?, ?)",
-                batch,
-            )
+            if batch:
+                cursor.executemany(
+                    "INSERT INTO icd10cm_fts (code, description) VALUES (?, ?)",
+                    batch,
+                )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
 
-        conn.commit()
         logger.info("Indexed %d ICD-10-CM codes in SQLite", count)
         return count
 
@@ -127,7 +131,8 @@ class ICD10CMSearch:
             conn = self._get_connection()
             cursor = conn.cursor()
 
-            fts_query = f'"{query.strip()}"'
+            escaped = query.strip().replace('"', '""')
+            fts_query = f'"{escaped}"'
 
             cursor.execute("""
                 SELECT code, description, rank
@@ -150,7 +155,14 @@ class ICD10CMSearch:
                 })
 
             scored.sort(key=lambda x: x["score"], reverse=True)
-            return scored[:limit]
+
+            seen_codes: set[str] = set()
+            unique_results = []
+            for result in scored:
+                if result["code"] not in seen_codes:
+                    seen_codes.add(result["code"])
+                    unique_results.append(result)
+            return unique_results[:limit]
 
     def close(self):
         with self._lock:

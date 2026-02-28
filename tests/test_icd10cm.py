@@ -84,11 +84,10 @@ def test_result_structure(icd10cm_search):
 
 
 def test_code_exact_match_ranks_first(icd10cm_search):
-    """Searching for the exact code 'I10' should find it."""
+    """Searching for the exact code 'I10' should find it as top result."""
     results = icd10cm_search.search("I10", limit=5)
     assert len(results) > 0
-    codes = [r["code"] for r in results]
-    assert "I10" in codes
+    assert results[0]["code"] == "I10"
 
 
 def test_persistence(sample_icd10cm_file, tmp_path):
@@ -104,3 +103,22 @@ def test_persistence(sample_icd10cm_file, tmp_path):
     results = s2.search("diabetes", limit=5)
     assert len(results) > 0
     s2.close()
+
+
+def test_no_duplicate_codes(tmp_path):
+    """Results must not contain duplicate codes even when same code appears multiple times in DB."""
+    file_path = tmp_path / "icd10cm_dup.txt"
+    # Simulate a file with the same code appearing twice (e.g., CMS can have this)
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write("E1100\tType 2 diabetes mellitus without complications\n")
+        f.write("E1100\tType 2 diabetes mellitus without complications\n")  # duplicate
+        f.write("E119\tType 2 diabetes mellitus, unspecified\n")
+
+    db_path = tmp_path / "dedup_test.db"
+    search = ICD10CMSearch(db_path)
+    search.build_index(file_path)
+    results = search.search("diabetes", limit=10)
+    search.close()
+
+    codes = [r["code"] for r in results]
+    assert len(codes) == len(set(codes)), "Search results must not contain duplicate codes"
