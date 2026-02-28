@@ -32,7 +32,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     icd10cm_file_path = os.environ.get("TEXTRACTOR_ICD10CM_FILE", "./data/terminology/icd10cm_codes.txt")
     icd10cm_file = Path(icd10cm_file_path) if icd10cm_file_path else None
 
-    init_terminology(snomed_dir=snomed_dir, icd10cm_file=icd10cm_file)
+    icd10cm_db_path_str = os.environ.get("TEXTRACTOR_ICD10CM_DB_PATH", "")
+    icd10cm_db_path = Path(icd10cm_db_path_str) if icd10cm_db_path_str else None
+
+    init_terminology(snomed_dir=snomed_dir, icd10cm_file=icd10cm_file, icd10cm_db_path=icd10cm_db_path)
     yield
 
 

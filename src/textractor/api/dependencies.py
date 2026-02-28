@@ -23,6 +23,7 @@ def init_store(root: Path) -> None:
 def init_terminology(
     snomed_dir: Optional[Path] = None,
     icd10cm_file: Optional[Path] = None,
+    icd10cm_db_path: Optional[Path] = None,
 ) -> None:
     """
     Initialize terminology indices (SNOMED CT and/or ICD-10-CM).
@@ -30,6 +31,9 @@ def init_terminology(
     Args:
         snomed_dir: Optional path to SNOMED CT RF2 directory
         icd10cm_file: Optional path to CMS ICD-10-CM flat file
+        icd10cm_db_path: Optional path for ICD-10-CM SQLite database.
+            Defaults to icd10cm_file.parent/icd10cm.db when not provided.
+            Override in Docker to place the DB in a writable volume.
     """
     global _terminology
 
@@ -37,13 +41,13 @@ def init_terminology(
     if snomed_dir and snomed_dir.exists():
         db_path = snomed_dir.parent / "snomed.db"
 
-    icd10cm_db_path = None
+    resolved_icd10cm_db_path = None
     if icd10cm_file and icd10cm_file.exists():
-        icd10cm_db_path = icd10cm_file.parent / "icd10cm.db"
+        resolved_icd10cm_db_path = icd10cm_db_path or (icd10cm_file.parent / "icd10cm.db")
 
     _terminology = EnhancedTerminologyIndex(
         db_path=db_path,
-        icd10cm_db_path=icd10cm_db_path,
+        icd10cm_db_path=resolved_icd10cm_db_path,
     )
 
     if snomed_dir and snomed_dir.exists():

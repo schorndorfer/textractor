@@ -12,6 +12,9 @@ services:
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - TEXTRACTOR_DOC_ROOT=/app/data/documents
+      - TEXTRACTOR_DB_PATH=/app/data/textractor.db
+      - TEXTRACTOR_ICD10CM_FILE=/app/data/terminology/icd10cm_codes.txt
+      - TEXTRACTOR_ICD10CM_DB_PATH=/app/data/icd10cm.db
       - TEXTRACTOR_LLM_MODEL=${TEXTRACTOR_LLM_MODEL:-claude-sonnet-4-5}
       - TEXTRACTOR_FUZZY_THRESHOLD=${TEXTRACTOR_FUZZY_THRESHOLD:-90}
     env_file:
