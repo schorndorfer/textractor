@@ -152,36 +152,43 @@ export function AnnotationPanel({
           value={terminologySystem}
           onChange={(e) => onTerminologyChange(e.target.value)}
           disabled={availableSystems.length <= 1}
-          title="Select terminology system for concept search"
+          title="Select terminology system"
         >
           {availableSystems.map((sys) => (
             <option key={sys} value={sys}>{sys}</option>
           ))}
         </select>
-        <button
-          onClick={handlePreAnnotate}
-          disabled={isLocked || isPreAnnotating}
-          className="preannotate-btn"
-          title="Generate AI annotations"
-        >
-          {isPreAnnotating ? '⏳ Pre-annotating...' : '⚙ Pre-annotate'}
-        </button>
-        <button
-          onClick={handleClear}
-          disabled={
-            isLocked ||
-            (annotations.spans.length === 0 &&
-              annotations.reasoning_steps.length === 0 &&
-              annotations.document_annotations.length === 0)
-          }
-          className="clear-btn"
-          title="Clear all annotations"
-        >
-          🗑️ Clear All
-        </button>
-        <button onClick={onUndo} disabled={!canUndo || isLocked} className={`save-btn${canUndo ? ' dirty' : ''}`}>
-          Undo
-        </button>
+        <div className="header-actions">
+          <button
+            onClick={handlePreAnnotate}
+            disabled={isLocked || isPreAnnotating}
+            className="preannotate-btn"
+            title={isPreAnnotating ? 'Generating AI annotations…' : 'Generate AI annotations'}
+          >
+            {isPreAnnotating ? '⏳' : '⚙'} Pre-annotate
+          </button>
+          <button
+            onClick={handleClear}
+            disabled={
+              isLocked ||
+              (annotations.spans.length === 0 &&
+                annotations.reasoning_steps.length === 0 &&
+                annotations.document_annotations.length === 0)
+            }
+            className="icon-btn icon-clear"
+            title="Clear all annotations"
+          >
+            🗑
+          </button>
+          <button
+            onClick={onUndo}
+            disabled={!canUndo || isLocked}
+            className={`icon-btn icon-undo${canUndo ? ' active' : ''}`}
+            title="Undo last change"
+          >
+            ↩
+          </button>
+        </div>
       </div>
       {isPreAnnotating && (
         <div className="preannotate-loading">

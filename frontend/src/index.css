@@ -730,13 +730,21 @@ input { font-family: inherit; font-size: 13px; }
 .panel-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 14px 10px;
+  gap: 6px;
+  padding: 8px 10px;
   border-bottom: 1px solid var(--sidebar-border);
   background: var(--sidebar-surface);
   flex-shrink: 0;
 }
-.panel-header h2 { font-size: 14px; font-weight: 600; flex: 1; }
+.panel-header h2 { font-size: 13px; font-weight: 600; flex: 1; margin: 0; }
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 6px;
+  border-left: 1px solid var(--sidebar-border);
+}
 
 .doc-lock-toggle {
   display: inline-flex;
@@ -756,21 +764,6 @@ input { font-family: inherit; font-size: 13px; }
   color: var(--text-muted);
 }
 
-.save-btn {
-  background: var(--border);
-  border: none;
-  border-radius: 4px;
-  padding: 5px 14px;
-  font-weight: 600;
-  color: var(--text-muted);
-  transition: background 0.2s, color 0.2s;
-}
-.save-btn.dirty {
-  background: var(--primary);
-  color: #fff;
-}
-.save-btn.dirty:hover { background: var(--primary-dark); }
-.save-btn:disabled { cursor: default; }
 
 .save-error {
   padding: 4px 14px;
@@ -1383,49 +1376,78 @@ input { font-family: inherit; font-size: 13px; }
 }
 
 /* Pre-annotate button */
+/* Terminology selector — compact, minimal */
+.terminology-selector {
+  font-size: 11px;
+  padding: 3px 5px;
+  border: 1px solid var(--sidebar-border);
+  border-radius: 4px;
+  background: var(--sidebar-bg);
+  color: var(--text);
+  cursor: pointer;
+  max-width: 110px;
+}
+.terminology-selector:disabled { opacity: 0.5; cursor: default; }
+
+/* Pre-annotate button — burnt orange, compact single-line */
 .preannotate-btn {
-  padding: 6px 12px;
-  border: 1px solid #c2410c;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: none;
   background: #c2410c;
   color: white;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  margin-right: 8px;
-  transition: background 0.2s;
-}
-
-.preannotate-btn:hover:not(:disabled) {
-  background: #9a3412;
-}
-
-.preannotate-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Clear all button */
-.clear-btn {
-  padding: 6px 12px;
-  border: 1px solid var(--danger);
-  background: transparent;
-  color: var(--danger);
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
-  margin-right: 8px;
-  transition: background 0.2s, color 0.2s;
+  white-space: nowrap;
+  transition: background 0.15s, transform 0.1s;
 }
+.preannotate-btn:hover:not(:disabled) { background: #9a3412; }
+.preannotate-btn:active:not(:disabled) { transform: scale(0.95); }
+.preannotate-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
-.clear-btn:hover:not(:disabled) {
-  background: var(--danger);
+/* Compact icon-only buttons */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 15px;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
+  flex-shrink: 0;
+}
+.icon-btn:active:not(:disabled) { transform: scale(0.90); }
+.icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* Clear — soft rose, fills danger on hover */
+.icon-btn.icon-clear {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+.icon-btn.icon-clear:hover:not(:disabled) {
+  background: #b91c1c;
   color: white;
 }
 
-.clear-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+/* Undo — muted steel, brightens to blue when active */
+.icon-btn.icon-undo {
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+.icon-btn.icon-undo.active {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+.icon-btn.icon-undo.active:hover {
+  background: #1d4ed8;
+  color: white;
 }
 
 /* Loading indicator in panel */
