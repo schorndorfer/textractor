@@ -25,6 +25,8 @@ export function App() {
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
   const [focusedSpanId, setFocusedSpanId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'document' | 'graph'>('document');
+  const [terminologySystem, setTerminologySystem] = useState<string>('SNOMED-CT');
+  const [availableSystems, setAvailableSystems] = useState<string[]>(['SNOMED-CT', 'ICD-10-CM']);
 
   // Pre-annotation state
   const [preAnnotateLoading, setPreAnnotateLoading] = useState(false);
@@ -97,6 +99,20 @@ export function App() {
 
   useEffect(() => {
     refreshDocuments();
+  }, []);
+
+  useEffect(() => {
+    api.getTerminologyInfo().then((info) => {
+      const loaded = info.systems
+        .filter((s) => s.loaded)
+        .map((s) => s.system);
+      if (loaded.length > 0) {
+        setAvailableSystems(loaded);
+        setTerminologySystem(loaded[0]);
+      }
+    }).catch(() => {
+      // Keep defaults on error
+    });
   }, []);
 
   useEffect(() => {
@@ -457,6 +473,9 @@ export function App() {
                 onPreAnnotate={handlePreAnnotate}
                 isPreAnnotating={preAnnotateLoading}
                 preAnnotateError={preAnnotateError}
+                terminologySystem={terminologySystem}
+                onTerminologyChange={setTerminologySystem}
+                availableSystems={availableSystems}
               />
             </>
           )
