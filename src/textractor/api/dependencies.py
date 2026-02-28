@@ -71,3 +71,18 @@ def get_annotation_store() -> SQLiteAnnotationStore:
     if _annotation_store is None:
         raise RuntimeError("Annotation store not initialized")
     return _annotation_store
+
+
+def get_store_optional() -> Optional[DocumentStore]:
+    """Get the document store if initialized, None otherwise."""
+    return _store
+
+
+def get_terminology_optional() -> Optional[EnhancedTerminologyIndex]:
+    """Get the terminology index if initialized, None otherwise."""
+    return _terminology
+
+
+def get_annotation_store_optional() -> Optional[SQLiteAnnotationStore]:
+    """Get the annotation store if initialized, None otherwise."""
+    return _annotation_store
