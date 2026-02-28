@@ -14,8 +14,8 @@
   --separator: #2f4f4f;
   --text: #212529;
   --text-muted: #6c757d;
-  --primary: #4a6fa5;
-  --primary-dark: #3a5a8f;
+  --primary: #0f766e;
+  --primary-dark: #0d5e57;
   --danger: #dc3545;
   --success: #28a745;
   --highlight: #fff3cd;
@@ -1442,11 +1442,11 @@ input { font-family: inherit; font-size: 13px; }
   color: #94a3b8;
 }
 .icon-btn.icon-undo.active {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: #ccfbf1;
+  color: #0f766e;
 }
 .icon-btn.icon-undo.active:hover {
-  background: #1d4ed8;
+  background: #0f766e;
   color: white;
 }
 
