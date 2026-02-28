@@ -1385,8 +1385,8 @@ input { font-family: inherit; font-size: 13px; }
 /* Pre-annotate button */
 .preannotate-btn {
   padding: 6px 12px;
-  border: 1px solid #9333ea;
-  background: #9333ea;
+  border: 1px solid #c2410c;
+  background: #c2410c;
   color: white;
   border-radius: 4px;
   cursor: pointer;
@@ -1396,7 +1396,7 @@ input { font-family: inherit; font-size: 13px; }
 }
 
 .preannotate-btn:hover:not(:disabled) {
-  background: #7e22ce;
+  background: #9a3412;
 }
 
 .preannotate-btn:disabled {

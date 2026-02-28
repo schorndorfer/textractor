@@ -164,7 +164,7 @@ export function AnnotationPanel({
           className="preannotate-btn"
           title="Generate AI annotations"
         >
-          {isPreAnnotating ? '⏳ Pre-annotating...' : '✨ Pre-annotate'}
+          {isPreAnnotating ? '⏳ Pre-annotating...' : '⚙ Pre-annotate'}
         </button>
         <button
           onClick={handleClear}
