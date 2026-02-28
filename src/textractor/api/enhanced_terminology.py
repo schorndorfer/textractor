@@ -105,6 +105,7 @@ class EnhancedTerminologyIndex:
             self._snomed_search = SNOMEDSearch(self._db_path)
             if self._snomed_search.is_indexed():
                 logger.info("Using existing SNOMED database at %s", self._db_path)
+                # Access _get_connection() directly — safe at startup before request threads are active
                 conn = self._snomed_search._get_connection()
                 cursor = conn.cursor()
                 cursor.execute("SELECT COUNT(*) FROM snomed_fts")
@@ -146,6 +147,7 @@ class EnhancedTerminologyIndex:
             self._icd10cm_search = ICD10CMSearch(self._icd10cm_db_path)
             if self._icd10cm_search.is_indexed():
                 logger.info("Using existing ICD-10-CM database at %s", self._icd10cm_db_path)
+                # Access _get_connection() directly — safe at startup before request threads are active
                 conn = self._icd10cm_search._get_connection()
                 cursor = conn.cursor()
                 cursor.execute("SELECT COUNT(*) FROM icd10cm_fts")
@@ -181,7 +183,11 @@ class EnhancedTerminologyIndex:
 
         if target == "ICD-10-CM":
             return self._search_icd10cm(query, limit)
-        return self._search_snomed(query, limit)
+        elif target == "SNOMED-CT":
+            return self._search_snomed(query, limit)
+        else:
+            logger.warning("Unknown terminology system '%s', defaulting to SNOMED-CT", target)
+            return self._search_snomed(query, limit)
 
     def _search_snomed(self, query: str, limit: int) -> list[TerminologyConcept]:
         if not self._snomed_loaded or not self._snomed_search:

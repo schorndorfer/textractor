@@ -52,9 +52,9 @@ class ICD10CMSearch:
                 tokenize='trigram'
             )
         """)
-        cursor.execute("DELETE FROM icd10cm_fts")
 
         try:
+            cursor.execute("DELETE FROM icd10cm_fts")
             count = 0
             batch = []
             with open(file_path, "r", encoding="utf-8") as f:

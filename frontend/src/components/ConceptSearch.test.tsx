@@ -102,6 +102,19 @@ describe('ConceptSearch', () => {
 
       expect(mockOnChange).toHaveBeenCalledWith(null);
     });
+
+    it('should pass system prop to search API', async () => {
+      const mockSearch = vi.spyOn(apiClient.api, 'searchTerminology');
+      mockSearch.mockResolvedValue(mockConcepts);
+      const user = userEvent.setup();
+      render(
+        <ConceptSearch value={null} onChange={mockOnChange} system="ICD-10-CM" />
+      );
+      await user.type(screen.getByRole('textbox'), 'diabetes');
+      await waitFor(() =>
+        expect(mockSearch).toHaveBeenCalledWith('diabetes', 20, 'ICD-10-CM')
+      );
+    });
   });
 
   describe('Dropdown Interaction', () => {

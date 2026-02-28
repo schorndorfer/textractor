@@ -78,6 +78,6 @@ class TerminologySystemInfo(BaseModel):
 
 class TerminologyInfo(BaseModel):
     total_concepts: int
-    file_name: Optional[str]
+    file_name: Optional[str] = None
     loaded: bool
     systems: list[TerminologySystemInfo] = Field(default_factory=list)
