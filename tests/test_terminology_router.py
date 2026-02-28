@@ -255,3 +255,42 @@ class TestIntegration:
             assert response.status_code == 200
             info = response.json()
             assert "loaded" in info
+
+
+class TestSystemParameter:
+    """Tests for system query param on /api/terminology/search."""
+
+    def test_search_with_snomed_system_param(self, client_no_terminology):
+        """system=SNOMED-CT is accepted even when nothing loaded."""
+        response = client_no_terminology.get(
+            "/api/terminology/search", params={"q": "diabetes", "system": "SNOMED-CT"}
+        )
+        assert response.status_code == 200
+        assert response.json() == []
+
+    def test_search_with_icd10cm_system_param(self, client_no_terminology):
+        """system=ICD-10-CM is accepted even when nothing loaded."""
+        response = client_no_terminology.get(
+            "/api/terminology/search", params={"q": "diabetes", "system": "ICD-10-CM"}
+        )
+        assert response.status_code == 200
+        assert response.json() == []
+
+    def test_search_invalid_system_rejected(self, client_no_terminology):
+        """system values not in the allowed set return 422."""
+        response = client_no_terminology.get(
+            "/api/terminology/search", params={"q": "diabetes", "system": "RXNORM"}
+        )
+        assert response.status_code == 422
+
+    def test_info_has_systems_field(self, client_no_terminology):
+        """info endpoint returns systems list."""
+        response = client_no_terminology.get("/api/terminology/info")
+        assert response.status_code == 200
+        info = response.json()
+        assert "systems" in info
+        assert isinstance(info["systems"], list)
+        assert len(info["systems"]) == 2
+        system_names = {s["system"] for s in info["systems"]}
+        assert "SNOMED-CT" in system_names
+        assert "ICD-10-CM" in system_names
