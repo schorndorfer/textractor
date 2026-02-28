@@ -8,9 +8,10 @@ interface Props {
   value: TerminologyConcept | null;
   onChange: (concept: TerminologyConcept | null) => void;
   placeholder?: string;
+  system?: string;
 }
 
-export function ConceptSearch({ value, onChange, placeholder = 'Search concepts...' }: Props) {
+export function ConceptSearch({ value, onChange, placeholder = 'Search concepts...', system }: Props) {
   const [query, setQuery] = useState(value?.display ?? '');
   const [results, setResults] = useState<TerminologyConcept[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -29,7 +30,7 @@ export function ConceptSearch({ value, onChange, placeholder = 'Search concepts.
 
     setIsLoading(true);
     try {
-      const hits = await api.searchTerminology(q, SEARCH.DEFAULT_LIMIT);
+      const hits = await api.searchTerminology(q, SEARCH.DEFAULT_LIMIT, system);
       setResults(hits);
       setIsOpen(hits.length > 0);
     } finally {

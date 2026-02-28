@@ -219,6 +219,7 @@ export function AnnotationPanel({
           annotations={annotations.document_annotations}
           onAnnotationSelect={onAnnotationSelect}
           disabled={isLocked}
+          system={terminologySystem}
         />
       </section>
 
@@ -236,6 +237,7 @@ export function AnnotationPanel({
           selectedAnnotationId={selectedAnnotationId}
           onAnnotationSelect={onAnnotationSelect}
           disabled={isLocked}
+          system={terminologySystem}
         />
       </section>
     </aside>

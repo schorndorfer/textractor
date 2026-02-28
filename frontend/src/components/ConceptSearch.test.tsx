@@ -83,7 +83,7 @@ describe('ConceptSearch', () => {
         { timeout: 1000 }
       );
 
-      expect(mockSearch).toHaveBeenCalledWith('chest', 20);
+      expect(mockSearch).toHaveBeenCalledWith('chest', 20, undefined);
     });
 
     it('should clear onChange when typing', async () => {
