@@ -70,7 +70,14 @@ class TerminologyConcept(BaseModel):
     system: str
 
 
+class TerminologySystemInfo(BaseModel):
+    system: str  # e.g. "SNOMED-CT", "ICD-10-CM"
+    loaded: bool
+    count: Optional[int] = None
+
+
 class TerminologyInfo(BaseModel):
     total_concepts: int
     file_name: Optional[str]
     loaded: bool
+    systems: list[TerminologySystemInfo] = Field(default_factory=list)

@@ -57,8 +57,15 @@ export interface TerminologyConcept {
   system: string;
 }
 
+export interface TerminologySystemInfo {
+  system: string;
+  loaded: boolean;
+  count: number | null;
+}
+
 export interface TerminologyInfo {
   total_concepts: number;
   file_name: string | null;
   loaded: boolean;
+  systems: TerminologySystemInfo[];
 }
