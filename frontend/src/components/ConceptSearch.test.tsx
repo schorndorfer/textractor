@@ -83,7 +83,7 @@ describe('ConceptSearch', () => {
         { timeout: 1000 }
       );
 
-      expect(mockSearch).toHaveBeenCalledWith('chest', 20);
+      expect(mockSearch).toHaveBeenCalledWith('chest', 20, undefined);
     });
 
     it('should clear onChange when typing', async () => {
@@ -101,6 +101,19 @@ describe('ConceptSearch', () => {
       await user.type(input, 'f');
 
       expect(mockOnChange).toHaveBeenCalledWith(null);
+    });
+
+    it('should pass system prop to search API', async () => {
+      const mockSearch = vi.spyOn(apiClient.api, 'searchTerminology');
+      mockSearch.mockResolvedValue(mockConcepts);
+      const user = userEvent.setup();
+      render(
+        <ConceptSearch value={null} onChange={mockOnChange} system="ICD-10-CM" />
+      );
+      await user.type(screen.getByRole('textbox'), 'diabetes');
+      await waitFor(() =>
+        expect(mockSearch).toHaveBeenCalledWith('diabetes', 20, 'ICD-10-CM')
+      );
     });
   });
 

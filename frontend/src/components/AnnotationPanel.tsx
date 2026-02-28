@@ -22,6 +22,9 @@ interface Props {
   onPreAnnotate: () => void;
   isPreAnnotating: boolean;
   preAnnotateError: string | null;
+  terminologySystem: string;
+  onTerminologyChange: (system: string) => void;
+  availableSystems: string[];
 }
 
 export function AnnotationPanel({
@@ -41,6 +44,9 @@ export function AnnotationPanel({
   onPreAnnotate,
   isPreAnnotating,
   preAnnotateError,
+  terminologySystem,
+  onTerminologyChange,
+  availableSystems,
 }: Props) {
   const isLocked = annotations.completed;
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
@@ -141,6 +147,17 @@ export function AnnotationPanel({
         <h2>
           Annotations {isLocked && <span className="lock-icon" title="Document is locked">🔒</span>}
         </h2>
+        <select
+          className="terminology-selector"
+          value={terminologySystem}
+          onChange={(e) => onTerminologyChange(e.target.value)}
+          disabled={availableSystems.length <= 1}
+          title="Select terminology system for concept search"
+        >
+          {availableSystems.map((sys) => (
+            <option key={sys} value={sys}>{sys}</option>
+          ))}
+        </select>
         <button
           onClick={handlePreAnnotate}
           disabled={isLocked || isPreAnnotating}
@@ -202,6 +219,7 @@ export function AnnotationPanel({
           annotations={annotations.document_annotations}
           onAnnotationSelect={onAnnotationSelect}
           disabled={isLocked}
+          system={terminologySystem}
         />
       </section>
 
@@ -219,6 +237,7 @@ export function AnnotationPanel({
           selectedAnnotationId={selectedAnnotationId}
           onAnnotationSelect={onAnnotationSelect}
           disabled={isLocked}
+          system={terminologySystem}
         />
       </section>
     </aside>

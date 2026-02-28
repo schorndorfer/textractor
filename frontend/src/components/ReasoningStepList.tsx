@@ -16,9 +16,10 @@ interface Props {
   annotations: DocumentAnnotation[];
   onAnnotationSelect: (annotationId: string | null) => void;
   disabled?: boolean;
+  system?: string;
 }
 
-export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMap, selectedAnnotationId, annotations, onAnnotationSelect, disabled }: Props) {
+export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMap, selectedAnnotationId, annotations, onAnnotationSelect, disabled, system }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftConcept, setDraftConcept] = useState<TerminologyConcept | null>(null);
   const [draftSpanIds, setDraftSpanIds] = useState<string[]>([]);
@@ -139,6 +140,7 @@ export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMa
                   value={draftConcept}
                   onChange={setDraftConcept}
                   placeholder="Search for intermediate concept..."
+                  system={system}
                 />
                 <div className="form-field">
                   <label>Note (optional):</label>

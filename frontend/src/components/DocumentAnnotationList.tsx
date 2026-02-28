@@ -13,6 +13,7 @@ interface Props {
   selectedAnnotationId: string | null;
   onAnnotationSelect: (annotationId: string | null) => void;
   disabled?: boolean;
+  system?: string;
 }
 
 export function DocumentAnnotationList({
@@ -24,6 +25,7 @@ export function DocumentAnnotationList({
   selectedAnnotationId,
   onAnnotationSelect,
   disabled,
+  system,
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftConcept, setDraftConcept] = useState<TerminologyConcept | null>(null);
@@ -122,6 +124,7 @@ export function DocumentAnnotationList({
                 value={draftConcept}
                 onChange={setDraftConcept}
                 placeholder="Search for document-level concept..."
+                system={system}
               />
               <div className="form-field">
                 <label>Note (optional):</label>

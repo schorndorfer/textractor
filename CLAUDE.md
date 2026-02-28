@@ -395,6 +395,7 @@ To import, unzip files into `TEXTRACTOR_DOC_ROOT` and run `uv run textractor mig
 | `TEXTRACTOR_DOC_ROOT` | `./data/documents` | Directory scanned recursively for `*.json` document files |
 | `TEXTRACTOR_DB_PATH` | `./data/textractor.db` | SQLite database path for annotation storage with version history |
 | `TEXTRACTOR_SNOMED_DIR` | `./data/terminology/SnomedCT` | Directory containing SNOMED CT RF2 files |
+| `TEXTRACTOR_ICD10CM_FILE` | `./data/terminology/icd10cm_codes.txt` | Path to CMS ICD-10-CM tab-delimited flat file |
 
 #### LLM Configuration
 
@@ -417,5 +418,7 @@ To import, unzip files into `TEXTRACTOR_DOC_ROOT` and run `uv run textractor mig
 - Place SNOMED CT RF2 files in `data/terminology/SnomedCT/` (or path specified in `TEXTRACTOR_SNOMED_DIR`)
 - SQLite database will be automatically built at `data/terminology/snomed.db` on first startup
 - Subsequent startups will reuse the existing database
+
+**ICD-10-CM integration** — place the CMS flat file (e.g. `icd10cm_codes_2025.txt`) at `data/terminology/icd10cm_codes.txt` (or path specified by `TEXTRACTOR_ICD10CM_FILE`). SQLite database built at `data/terminology/icd10cm.db` on first startup. Download from: https://www.cms.gov/medicare/coding-billing/icd-10-codes/2025-icd-10-cm
 
 - When working on a github issue, create a new, appropriately named local branch. Do the work on that branch, then push to remote and create a Pull Request linked to the issue.

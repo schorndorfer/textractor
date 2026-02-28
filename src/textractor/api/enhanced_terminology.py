@@ -1,93 +1,116 @@
-"""SNOMED CT terminology search."""
+"""Terminology search supporting SNOMED CT and ICD-10-CM."""
 from __future__ import annotations
 
 import logging
 from pathlib import Path
 from typing import Optional, Protocol
 
-from .models import TerminologyConcept, TerminologyInfo
+from .models import TerminologyConcept, TerminologyInfo, TerminologySystemInfo
 
 logger = logging.getLogger(__name__)
 
 
 class SNOMEDSearchProtocol(Protocol):
-    """Protocol defining the interface for SNOMED search implementations."""
+    def search(self, query: str, limit: int) -> list[dict]: ...
+    def is_indexed(self) -> bool: ...
 
-    def search(self, query: str, limit: int) -> list[dict]:
-        """Search for SNOMED concepts."""
-        ...
 
-    def is_indexed(self) -> bool:
-        """Check if the search index is ready."""
-        ...
+class ICD10CMSearchProtocol(Protocol):
+    def search(self, query: str, limit: int) -> list[dict]: ...
+    def is_indexed(self) -> bool: ...
 
 
 class EnhancedTerminologyIndex:
     """
-    SNOMED CT terminology search using SQLite FTS5.
+    Terminology search supporting SNOMED CT and ICD-10-CM.
 
-    Features:
-    - Persistent SQLite database storage
-    - Fast full-text search with FTS5
-    - Low memory footprint
-    - Automatic index building from RF2 files
+    Search is dispatched to the correct backend based on the `system` parameter.
+    Both systems can be loaded independently; either or both may be absent.
     """
 
-    def __init__(self, db_path: Optional[Path] = None) -> None:
+    def __init__(
+        self,
+        db_path: Optional[Path] = None,
+        icd10cm_db_path: Optional[Path] = None,
+    ) -> None:
+        # SNOMED state
         self._snomed_search: Optional[SNOMEDSearchProtocol] = None
         self._snomed_loaded = False
         self._snomed_count: Optional[int] = None
         self._snomed_path: Optional[str] = None
         self._db_path = db_path
 
+        # ICD-10-CM state
+        self._icd10cm_search: Optional[ICD10CMSearchProtocol] = None
+        self._icd10cm_loaded = False
+        self._icd10cm_count: Optional[int] = None
+        self._icd10cm_db_path = icd10cm_db_path
+
     @property
     def is_loaded(self) -> bool:
+        return self._snomed_loaded or self._icd10cm_loaded
+
+    @property
+    def icd10cm_loaded(self) -> bool:
+        return self._icd10cm_loaded
+
+    @property
+    def snomed_loaded(self) -> bool:
         return self._snomed_loaded
 
     def info(self) -> TerminologyInfo:
-        if self._snomed_loaded and self._snomed_count is not None:
-            return TerminologyInfo(
-                total_concepts=self._snomed_count,
-                file_name=f"SNOMED CT ({self._snomed_count} descriptions)",
-                loaded=True,
-            )
+        systems: list[TerminologySystemInfo] = [
+            TerminologySystemInfo(
+                system="SNOMED-CT",
+                loaded=self._snomed_loaded,
+                count=self._snomed_count,
+            ),
+            TerminologySystemInfo(
+                system="ICD-10-CM",
+                loaded=self._icd10cm_loaded,
+                count=self._icd10cm_count,
+            ),
+        ]
+
+        total = (self._snomed_count or 0) + (self._icd10cm_count or 0)
+        loaded = self._snomed_loaded or self._icd10cm_loaded
+
+        file_name_parts = []
+        if self._snomed_loaded and self._snomed_count:
+            file_name_parts.append(f"SNOMED CT ({self._snomed_count} descriptions)")
+        if self._icd10cm_loaded and self._icd10cm_count:
+            file_name_parts.append(f"ICD-10-CM ({self._icd10cm_count} codes)")
+
         return TerminologyInfo(
-            total_concepts=0,
-            file_name=None,
-            loaded=False,
+            total_concepts=total,
+            file_name=", ".join(file_name_parts) if file_name_parts else None,
+            loaded=loaded,
+            systems=systems,
         )
 
-    def load_snomed(self, rf2_dir: Path) -> int:
-        """
-        Load SNOMED CT from RF2 files into SQLite database.
+    # ── SNOMED loading ────────────────────────────────────────────────────────
 
-        If database already exists, it will be reused. Otherwise, it will be built
-        from the RF2 files in the provided directory.
-        """
-        desc_count = self._try_load_sqlite(rf2_dir)
+    def load_snomed(self, rf2_dir: Path) -> int:
+        desc_count = self._try_load_snomed_sqlite(rf2_dir)
         self._snomed_count = desc_count if desc_count > 0 else None
         return desc_count
 
-    def _try_load_sqlite(self, rf2_dir: Path) -> int:
-        """Load SNOMED using SQLite. Returns 0 on failure."""
+    def _try_load_snomed_sqlite(self, rf2_dir: Path) -> int:
         if not self._db_path:
             logger.warning("No database path provided for SNOMED loading")
             return 0
-
         try:
             from textractor.terminology.snomed import SNOMEDSearch
 
             self._snomed_search = SNOMEDSearch(self._db_path)
-
-            # Check if database is already indexed
             if self._snomed_search.is_indexed():
                 logger.info("Using existing SNOMED database at %s", self._db_path)
+                # Access _get_connection() directly — safe at startup before request threads are active
                 conn = self._snomed_search._get_connection()
                 cursor = conn.cursor()
                 cursor.execute("SELECT COUNT(*) FROM snomed_fts")
                 desc_count = cursor.fetchone()[0]
             else:
-                # Build index from RF2 files
                 logger.info("Building SNOMED index from %s", rf2_dir)
                 desc_count = self._snomed_search.build_index(rf2_dir)
                 logger.info("Built SNOMED index with %d descriptions", desc_count)
@@ -95,33 +118,99 @@ class EnhancedTerminologyIndex:
             self._snomed_loaded = True
             self._snomed_path = str(rf2_dir)
             return desc_count
-
         except Exception as exc:
             logger.error("Failed to load SNOMED CT from %s: %s", rf2_dir, exc)
             return 0
 
-    def search(self, query: str, limit: int = 20) -> list[TerminologyConcept]:
-        """Search for SNOMED CT concepts."""
-        if not self._snomed_loaded or not self._snomed_search:
-            return []
+    # ── ICD-10-CM loading ─────────────────────────────────────────────────────
 
-        return self._search_snomed(query, limit)
+    def load_icd10cm(self, file_path: Path) -> int:
+        """
+        Load ICD-10-CM from CMS flat file into SQLite database.
+
+        Args:
+            file_path: Path to tab-delimited ICD-10-CM flat file
+        Returns:
+            Number of codes indexed (0 on failure)
+        """
+        count = self._try_load_icd10cm_sqlite(file_path)
+        self._icd10cm_count = count if count > 0 else None
+        return count
+
+    def _try_load_icd10cm_sqlite(self, file_path: Path) -> int:
+        if not self._icd10cm_db_path:
+            logger.warning("No ICD-10-CM database path provided")
+            return 0
+        try:
+            from textractor.terminology.icd10cm import ICD10CMSearch
+
+            self._icd10cm_search = ICD10CMSearch(self._icd10cm_db_path)
+            if self._icd10cm_search.is_indexed():
+                logger.info("Using existing ICD-10-CM database at %s", self._icd10cm_db_path)
+                # Access _get_connection() directly — safe at startup before request threads are active
+                conn = self._icd10cm_search._get_connection()
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM icd10cm_fts")
+                count = cursor.fetchone()[0]
+            else:
+                logger.info("Building ICD-10-CM index from %s", file_path)
+                count = self._icd10cm_search.build_index(file_path)
+                logger.info("Built ICD-10-CM index with %d codes", count)
+
+            self._icd10cm_loaded = True
+            return count
+        except Exception as exc:
+            logger.error("Failed to load ICD-10-CM from %s: %s", file_path, exc)
+            return 0
+
+    # ── Search ────────────────────────────────────────────────────────────────
+
+    def search(
+        self,
+        query: str,
+        limit: int = 20,
+        system: Optional[str] = None,
+    ) -> list[TerminologyConcept]:
+        """
+        Search terminology concepts.
+
+        Args:
+            query: Search string
+            limit: Max results
+            system: "SNOMED-CT", "ICD-10-CM", or None (defaults to SNOMED-CT)
+        """
+        target = system or "SNOMED-CT"
+
+        if target == "ICD-10-CM":
+            return self._search_icd10cm(query, limit)
+        elif target == "SNOMED-CT":
+            return self._search_snomed(query, limit)
+        else:
+            logger.warning("Unknown terminology system '%s', defaulting to SNOMED-CT", target)
+            return self._search_snomed(query, limit)
 
     def _search_snomed(self, query: str, limit: int) -> list[TerminologyConcept]:
-        """Search using SNOMED CT and convert to TerminologyConcept."""
-        if not self._snomed_search:
+        if not self._snomed_loaded or not self._snomed_search:
             return []
-
         results = self._snomed_search.search(query, limit=limit)
-
-        # Convert SNOMED search results to TerminologyConcept format
-        concepts = []
-        for result in results:
-            concept = TerminologyConcept(
-                code=str(result["concept_id"]),
-                display=result["term"],
+        return [
+            TerminologyConcept(
+                code=str(r["concept_id"]),
+                display=r["term"],
                 system="SNOMED-CT",
             )
-            concepts.append(concept)
+            for r in results
+        ]
 
-        return concepts
+    def _search_icd10cm(self, query: str, limit: int) -> list[TerminologyConcept]:
+        if not self._icd10cm_loaded or not self._icd10cm_search:
+            return []
+        results = self._icd10cm_search.search(query, limit=limit)
+        return [
+            TerminologyConcept(
+                code=r["code"],
+                display=r["description"],
+                system="ICD-10-CM",
+            )
+            for r in results
+        ]

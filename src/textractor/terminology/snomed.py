@@ -195,7 +195,8 @@ class SNOMEDSearch:
 
             # Escape query for FTS5 by wrapping in double quotes (phrase search)
             # This treats special FTS5 syntax characters (commas, parens, etc.) as literals
-            fts_query = f'"{query.strip()}"'
+            escaped = query.strip().replace('"', '""')
+            fts_query = f'"{escaped}"'
 
             # FTS5 MATCH query - rank is negative (higher is better match)
             # We get more results than needed for re-ranking

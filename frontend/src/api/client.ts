@@ -85,10 +85,11 @@ export const api = {
       method: 'POST',
     }),
 
-  searchTerminology: (q: string, limit = 20) =>
-    request<TerminologyConcept[]>(
-      `/terminology/search?q=${encodeURIComponent(q)}&limit=${limit}`
-    ),
+  searchTerminology: (q: string, limit = 20, system?: string) => {
+    const params = new URLSearchParams({ q, limit: String(limit) });
+    if (system) params.set('system', system);
+    return request<TerminologyConcept[]>(`/terminology/search?${params}`);
+  },
 
   getTerminologyInfo: () => request<TerminologyInfo>('/terminology/info'),
 
