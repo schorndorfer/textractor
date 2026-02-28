@@ -100,3 +100,43 @@ def test_enhanced_index_respects_limit(enhanced_index, snomed_dir):
     assert len(results_3) <= 3
     assert len(results_10) <= 10
     assert len(results_10) >= len(results_3)
+
+
+def test_enhanced_terminology_load_icd10cm(tmp_path):
+    """Load ICD-10-CM into EnhancedTerminologyIndex and search."""
+    import csv
+    from textractor.api.enhanced_terminology import EnhancedTerminologyIndex
+
+    # Create synthetic file
+    icd_file = tmp_path / "icd10cm_codes.txt"
+    rows = [
+        ("E1100", "Type 2 diabetes mellitus without complications"),
+        ("I10", "Essential (primary) hypertension"),
+        ("J189", "Pneumonia, unspecified organism"),
+    ]
+    with open(icd_file, "w") as f:
+        writer = csv.writer(f, delimiter="\t")
+        for r in rows:
+            writer.writerow(r)
+
+    db_path = tmp_path / "icd10cm.db"
+    index = EnhancedTerminologyIndex(db_path=None, icd10cm_db_path=db_path)
+    count = index.load_icd10cm(icd_file)
+
+    assert count == 3
+    assert index.icd10cm_loaded
+
+    results = index.search("diabetes", limit=5, system="ICD-10-CM")
+    assert len(results) > 0
+    assert results[0].system == "ICD-10-CM"
+    assert results[0].code == "E1100"
+
+
+def test_enhanced_terminology_search_dispatches_by_system(tmp_path):
+    """search() returns empty when no terminologies loaded."""
+    from textractor.api.enhanced_terminology import EnhancedTerminologyIndex
+    index = EnhancedTerminologyIndex()
+    results = index.search("diabetes", limit=5, system="SNOMED-CT")
+    assert results == []
+    results2 = index.search("diabetes", limit=5, system="ICD-10-CM")
+    assert results2 == []
