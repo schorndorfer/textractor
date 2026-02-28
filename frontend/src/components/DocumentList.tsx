@@ -364,7 +364,7 @@ export function DocumentList({
   return (
     <aside className="doc-list">
       <div className="doc-list-header">
-        <h2>Documents</h2>
+        <h2 title="Documents">📄</h2>
         <div className="upload-container" ref={uploadMenuRef}>
           <button
             className={`upload-btn${uploading ? ' uploading' : ''}`}

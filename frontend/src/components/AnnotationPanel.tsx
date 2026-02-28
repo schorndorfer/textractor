@@ -145,7 +145,7 @@ export function AnnotationPanel({
           </button>
         )}
         <h2>
-          Annotations {isLocked && <span className="lock-icon" title="Document is locked">🔒</span>}
+          <span title="Annotations">✏</span> {isLocked && <span className="lock-icon" title="Document is locked">🔒</span>}
         </h2>
         <select
           className="terminology-selector"
