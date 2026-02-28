@@ -738,6 +738,20 @@ input { font-family: inherit; font-size: 13px; }
 }
 .panel-header h2 { font-size: 13px; font-weight: 600; flex: 1; margin: 0; }
 
+.sidebar-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  font-size: 16px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  flex-shrink: 0;
+}
+.sidebar-icon--orange { color: #c2410c; }
+.sidebar-icon--teal   { color: #0f766e; }
+
 .header-actions {
   display: flex;
   align-items: center;
