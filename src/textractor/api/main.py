@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from .dependencies import init_annotation_store, init_store, init_terminology
 from .routers import annotations, documents, preannotate
 from .routers import terminology as terminology_router
+from .routers import health as health_router
 
 
 @asynccontextmanager
@@ -58,6 +59,7 @@ def create_app() -> FastAPI:
     app.include_router(annotations.router)
     app.include_router(preannotate.router)
     app.include_router(terminology_router.router)
+    app.include_router(health_router.router)
 
     # Serve React build in production
     frontend_dist = Path(__file__).parent.parent.parent.parent / "frontend" / "dist"
