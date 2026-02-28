@@ -191,7 +191,7 @@ export function ReasoningStepList({ steps, availableSpans, onChange, stepColorMa
                 <div className="item-info">
                   <span className="concept-label">
                     {step.source === 'model' && (
-                      <span className="ai-badge" title="Model-generated">✨</span>
+                      <span className="ai-badge" title="Model-generated">⚙</span>
                     )}
                     {step.concept.display || '(no concept)'}{' '}
                     {step.concept.code && (
